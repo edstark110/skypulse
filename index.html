@@ -14607,6 +14607,303 @@ document.addEventListener('DOMContentLoaded', function () {
   }, 800);
 });
 
+/* =================================================================
+   ✦ PHASE 16 — DATE PICKER + IN-APP COMPARISON MODAL
+   16A · departure + return date inputs (replace "Next 30 days" select)
+   16B · comparison view in same tab as full-screen modal (no new tab)
+   ================================================================= */
+
+/* -------- 16A. DATE PICKER --------
+   Replace the #when select with native date inputs (departure + return).
+   Persist selection in state.searchDates · feed through to deeplink URLs. */
+if (typeof state !== 'undefined') {
+  state.searchDates = state.searchDates || (function () {
+    const d = new Date();
+    const dep = new Date(d.getTime() + 14 * 86400000);
+    const ret = new Date(d.getTime() + 21 * 86400000);
+    const fmt = x => x.toISOString().slice(0, 10);
+    return { departure: fmt(dep), return: fmt(ret), tripType: 'round' };
+  })();
+}
+
+function applyDatePicker() {
+  return safeCall(function () {
+    const whenField = document.querySelector('.search-row .field:has(#when)') ||
+                      (document.getElementById('when') && document.getElementById('when').closest('.field'));
+    if (!whenField) return;
+    if (whenField.dataset.datepickerBound === '1') return;
+    whenField.dataset.datepickerBound = '1';
+
+    // Replace the field's content with a dual-date picker
+    whenField.innerHTML =
+      '<label>Travel dates</label>' +
+      '<div class="date-pair">' +
+        '<input type="date" id="depDate" min="' + new Date().toISOString().slice(0,10) + '" value="' + state.searchDates.departure + '" title="Departure" />' +
+        '<span class="date-arrow">→</span>' +
+        '<input type="date" id="retDate" min="' + state.searchDates.departure + '" value="' + state.searchDates.return + '" title="Return (optional)" />' +
+      '</div>';
+
+    function syncFromInputs() {
+      const dep = document.getElementById('depDate').value;
+      const ret = document.getElementById('retDate').value;
+      state.searchDates.departure = dep || state.searchDates.departure;
+      state.searchDates.return    = ret || state.searchDates.return;
+      // Make return min = departure to avoid invalid ranges
+      const retEl = document.getElementById('retDate');
+      if (retEl && dep) retEl.min = dep;
+      // If trip select says one-way, blank return
+      const tripEl = document.getElementById('trip');
+      if (tripEl && /one-way/i.test(tripEl.value || '')) {
+        document.getElementById('retDate').disabled = true;
+      } else {
+        document.getElementById('retDate').disabled = false;
+      }
+    }
+    document.getElementById('depDate').addEventListener('change', syncFromInputs);
+    document.getElementById('retDate').addEventListener('change', syncFromInputs);
+    const tripEl = document.getElementById('trip');
+    if (tripEl) tripEl.addEventListener('change', syncFromInputs);
+    syncFromInputs();
+  }, null, '16A.applyDatePicker');
+}
+
+(function injectPhase16Css() {
+  if (document.getElementById('phase16-css')) return;
+  const css = `
+    /* §16A — date pair */
+    .date-pair {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 0.5px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      padding: 6px 10px;
+      height: 44px;
+    }
+    .date-pair input[type="date"] {
+      background: transparent; border: none; outline: none;
+      color: #fff;
+      font: 600 13px/1 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.005em;
+      flex: 1; min-width: 0;
+      cursor: pointer;
+      color-scheme: dark;
+    }
+    .date-pair input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1) opacity(0.6);
+      cursor: pointer;
+    }
+    .date-pair input[type="date"]:disabled { color: rgba(255,255,255,0.30); }
+    .date-pair .date-arrow {
+      color: rgba(255,255,255,0.45);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .field:has(.date-pair) { min-width: 240px; }
+    @media (max-width: 720px) {
+      .date-pair { flex-wrap: wrap; }
+    }
+
+    /* §16B — in-app comparison modal */
+    .compare-modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(12px);
+      display: none;
+      align-items: flex-start; justify-content: center;
+      z-index: 9990;
+      padding: 28px 16px;
+      overflow-y: auto;
+      animation: cmFade 0.18s ease;
+    }
+    .compare-modal-overlay.open { display: flex; }
+    @keyframes cmFade { from { opacity: 0; } to { opacity: 1; } }
+    .compare-modal-card {
+      width: min(760px, 100%);
+      background: linear-gradient(180deg, rgba(20,21,26,0.98), rgba(10,11,15,1));
+      border: 0.5px solid rgba(255,255,255,0.10);
+      border-radius: 16px;
+      padding: 28px 26px 32px;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      animation: cmSlide 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+    @keyframes cmSlide { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .compare-modal-close {
+      position: absolute; top: 14px; right: 14px;
+      width: 30px; height: 30px;
+      background: rgba(255,255,255,0.06);
+      border: 0.5px solid rgba(255,255,255,0.10);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.7);
+      font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .compare-modal-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    /* The internal layout reuses the comparison HTML's classes */
+    .compare-modal-card .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: rgba(255,255,255,0.55); text-transform: uppercase; }
+    .compare-modal-card .brand svg { width: 18px; height: 18px; }
+    .compare-modal-card h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 6px; }
+    .compare-modal-card h1 .arrow { color: rgba(255,255,255,0.4); font-weight: 400; margin: 0 12px; font-size: 26px; }
+    .compare-modal-card .meta { font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.55); line-height: 1.5; margin-bottom: 24px; }
+    .compare-modal-card .meta strong { color: rgba(255,255,255,0.92); font-weight: 600; }
+    .compare-modal-card .summary { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px 20px; margin-bottom: 28px; }
+    .compare-modal-card .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 14px 20px; }
+    .compare-modal-card .summary-grid .k { font-size: 10.5px; font-weight: 500; letter-spacing: 0.06em; color: rgba(255,255,255,0.45); text-transform: uppercase; margin-bottom: 5px; }
+    .compare-modal-card .summary-grid .v { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: -0.005em; }
+    .compare-modal-card .summary-grid .v.price { font-size: 18px; font-weight: 700; color: #30d158; }
+    .compare-modal-card .sources-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; padding-top: 4px; }
+    .compare-modal-card .sources-head h2 { font-size: 16px; font-weight: 600; letter-spacing: -0.015em; }
+    .compare-modal-card .sources-head small { font-size: 11.5px; font-weight: 400; color: rgba(255,255,255,0.50); }
+    .compare-modal-card .src-list { display: flex; flex-direction: column; gap: 7px; }
+    .compare-modal-card .src-row { display: grid; grid-template-columns: 38px 1fr auto auto; align-items: center; gap: 14px; padding: 12px 16px; background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 10px; text-decoration: none; color: inherit; transition: background 0.18s, transform 0.18s; }
+    .compare-modal-card .src-row:hover { background: rgba(255,255,255,0.07); transform: translateY(-1px); }
+    .compare-modal-card .src-row .logo { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.04em; }
+    .compare-modal-card .src-row .info .name { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: -0.005em; }
+    .compare-modal-card .src-row .info .tag { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.55); margin-top: 3px; }
+    .compare-modal-card .src-row .info .best { color: #30d158; font-weight: 600; }
+    .compare-modal-card .src-row .info .delta { color: rgba(255,255,255,0.45); }
+    .compare-modal-card .src-row .price { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+    .compare-modal-card .src-row .cta { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.08); padding: 7px 11px; border-radius: 7px; border: 0.5px solid rgba(255,255,255,0.12); }
+    .compare-modal-card .src-row:first-child .cta { background: rgba(48,209,88,0.18); color: #30d158; border-color: rgba(48,209,88,0.35); }
+    .compare-modal-card .disclaimer { margin-top: 28px; padding: 14px 18px; background: rgba(10,132,255,0.06); border: 0.5px solid rgba(10,132,255,0.20); border-radius: 10px; font-size: 12px; line-height: 1.55; color: rgba(255,255,255,0.62); }
+    .compare-modal-card .disclaimer strong { color: #fff; font-weight: 600; }
+    .compare-modal-card .footer { margin-top: 18px; text-align: center; font-size: 10px; font-weight: 500; letter-spacing: 0.12em; color: rgba(255,255,255,0.30); text-transform: uppercase; }
+    @media (max-width: 600px) {
+      .compare-modal-card { padding: 22px 18px 28px; }
+      .compare-modal-card h1 { font-size: 26px; }
+      .compare-modal-card h1 .arrow { font-size: 22px; }
+      .compare-modal-card .src-row { grid-template-columns: 32px 1fr auto; padding: 10px 12px; gap: 10px; }
+      .compare-modal-card .src-row .cta { display: none; }
+      .compare-modal-card .src-row .logo { width: 32px; height: 32px; font-size: 10px; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase16-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
+/* -------- 16B. IN-APP COMPARISON MODAL (replace new-tab) -------- */
+function buildComparisonInnerHtml(flight, fromCode, toCode) {
+  /* Reuse the V3 builder's body structure but strip <html>/<head>/<style>/<body>
+     since we're rendering inside the live app's stylesheet now (CSS already injected). */
+  try {
+    const isDirect    = !flight.hub;
+    const carrierName = isDirect
+      ? (flight.carrier && flight.carrier.n) || 'Operator'
+      : ((flight.leg1Carrier && flight.leg1Carrier.n) || '?') + ' + ' + ((flight.leg2Carrier && flight.leg2Carrier.n) || '?');
+    const flightNum   = isDirect ? (flight.flightNum || '') : 'via ' + flight.hub + ' (' + flight.hubCity + ')';
+    const aircraft    = isDirect ? (flight.aircraft || '—') : '—';
+    const durLabel    = isDirect ? flight.durationLabel : flight.totalLabel;
+    const depTime     = isDirect && flight.depHr != null
+      ? String(flight.depHr).padStart(2,'0') + ':' + String(flight.depMin).padStart(2,'0') : '—';
+    const arrTime     = isDirect && flight.arrHr != null
+      ? String(flight.arrHr).padStart(2,'0') + ':' + String(flight.arrMin).padStart(2,'0') + (flight.dayOff > 0 ? ' +' + flight.dayOff : '')
+      : '—';
+    const sources = [...(flight.sourcePrices || [])].sort((a, b) => a.price - b.price);
+    const cheapestPrice = sources[0] ? sources[0].price : (flight.priceLow || 0);
+    const fm = (typeof fmtMoney === 'function') ? fmtMoney : (gbp => '£' + Math.round(gbp));
+    const dep = (state && state.searchDates && state.searchDates.departure) || null;
+    const datesLine = dep ? '<div class="meta" style="margin-top:-18px;margin-bottom:18px;font-size:12px"><strong>Dates</strong> · ' + dep + (state.searchDates.return ? ' → ' + state.searchDates.return : '') + '</div>' : '';
+
+    const sourceCards = sources.map(function (s, i) {
+      const url = (typeof bookingUrlV3 === 'function' ? bookingUrlV3 : bookingUrlV2)(s.name, fromCode, toCode, dep);
+      const initials = s.name.split(/[\s.]/).filter(Boolean).map(w => w[0]).join('').slice(0,2).toUpperCase();
+      const deltaPct = i === 0 ? 0 : Math.round((s.price - cheapestPrice) / cheapestPrice * 100);
+      const tag = i === 0 ? '<span class="best">★ Cheapest</span>' : (deltaPct > 0 ? '<span class="delta">+' + deltaPct + '%</span>' : '');
+      return '<a class="src-row" href="' + url + '" target="_blank" rel="noopener noreferrer" style="--c:' + s.color + '">'
+        + '<div class="logo" style="background:' + s.color + '">' + initials + '</div>'
+        + '<div class="info"><div class="name">' + s.name + '</div><div class="tag">' + tag + '</div></div>'
+        + '<div class="price">' + fm(s.price) + '</div>'
+        + '<div class="cta">Search ↗</div>'
+        + '</a>';
+    }).join('');
+
+    return ''
+      + '<button class="compare-modal-close" aria-label="Close" onclick="closeFlightComparison()">✕</button>'
+      + '<div class="brand"><svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#fff"/></svg>'
+      + '<span>SkyPulse</span><span style="opacity:0.5;letter-spacing:0.05em;text-transform:none;font-weight:500">flight comparison</span></div>'
+      + '<h1>' + fromCode + '<span class="arrow">→</span>' + toCode + '</h1>'
+      + '<div class="meta"><strong>' + carrierName + '</strong> · ' + flightNum + ' · ' + (durLabel || '—') + (depTime !== '—' ? ' · ' + depTime + ' to ' + arrTime : '') + '</div>'
+      + datesLine
+      + '<div class="summary"><div class="summary-grid">'
+      + '<div><div class="k">From</div><div class="v">' + fromCode + '</div></div>'
+      + '<div><div class="k">To</div><div class="v">' + toCode + '</div></div>'
+      + '<div><div class="k">' + (isDirect ? 'Aircraft' : 'Routing') + '</div><div class="v">' + (isDirect ? aircraft : flight.hub) + '</div></div>'
+      + '<div><div class="k">Duration</div><div class="v">' + (durLabel || '—') + '</div></div>'
+      + '<div><div class="k">Stops</div><div class="v">' + (isDirect ? 'Direct' : '1 stop') + '</div></div>'
+      + '<div><div class="k">Cheapest</div><div class="v price">' + fm(cheapestPrice) + '</div></div>'
+      + '</div></div>'
+      + '<div class="sources-head"><h2>' + sources.length + ' booking sources</h2><small>sorted by price · click to search</small></div>'
+      + '<div class="src-list">' + sourceCards + '</div>'
+      + '<div class="disclaimer"><strong>About these prices.</strong> Estimates from public signals (fuel, capacity, distance, carrier mix) — <strong>not live fares</strong>. Each "Search ↗" opens a new tab to that source’s actual results. <strong>No affiliate links, no monetization.</strong></div>'
+      + '<div class="footer">SkyPulse · ' + new Date().getFullYear() + '</div>';
+  } catch (e) {
+    return '<button class="compare-modal-close" onclick="closeFlightComparison()">✕</button><div style="padding:20px;color:#ff453a">Comparison failed: ' + (e.message || e) + '</div>';
+  }
+}
+
+function ensureCompareModal() {
+  let overlay = document.getElementById('flightComparisonModal');
+  if (overlay) return overlay;
+  overlay = document.createElement('div');
+  overlay.id = 'flightComparisonModal';
+  overlay.className = 'compare-modal-overlay';
+  overlay.innerHTML = '<div class="compare-modal-card" id="flightComparisonCard"></div>';
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) closeFlightComparison();
+  });
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function openFlightComparisonV3(flight) {
+  return safeCall(function () {
+    const fromCode = state.origin && state.origin.code;
+    const toCode   = state.destination && state.destination.code;
+    if (!fromCode || !toCode || toCode === 'ANY') {
+      if (typeof toast === 'function') toast({ title: 'Pick a destination', msg: 'Search a specific route first.', type: 'info' });
+      else alert('Please search a specific destination first.');
+      return;
+    }
+    if (!flight) {
+      if (typeof toast === 'function') toast({ title: 'No flight data', msg: 'Couldn’t locate that flight.', type: 'info' });
+      else alert('Flight data unavailable.');
+      return;
+    }
+    const overlay = ensureCompareModal();
+    const card = document.getElementById('flightComparisonCard');
+    if (card) card.innerHTML = buildComparisonInnerHtml(flight, fromCode, toCode);
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }, null, '16B.openComparison');
+}
+function closeFlightComparison() {
+  const overlay = document.getElementById('flightComparisonModal');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+window.openFlightComparisonV3 = openFlightComparisonV3;
+window.closeFlightComparison = closeFlightComparison;
+
+/* Replace the V2 entry point so existing buttons fire the modal instead of a new tab */
+window.openFlightComparisonV2 = openFlightComparisonV3;
+
+/* ESC to close */
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('flightComparisonModal');
+    if (overlay && overlay.classList.contains('open')) closeFlightComparison();
+  }
+});
+
+/* Wire the date picker after DOM is ready */
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(applyDatePicker, 200);
+});
+
 function init() {
   bindUI();
   bindCurrencyPicker();
