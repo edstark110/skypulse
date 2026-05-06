@@ -1,0 +1,39 @@
+# SkyPulse · .gitignore
+# Military-grade ignore — no clutter, no leaks
+
+# Backups (kept locally; rolled back versions)
+*.broken-backup.html
+*.STABLE-backup.html
+*.bak
+*.backup
+*~
+
+# Node (server.js doesn't use deps but if you ever add)
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# Vercel artifacts
+.vercel/
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Build output (n/a but reserved)
+dist/
+build/
+out/
