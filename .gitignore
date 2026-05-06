@@ -29,6 +29,9 @@ desktop.ini
 *.swp
 *.swo
 
+# Claude Code workspace config (user-local)
+.claude/
+
 # Logs
 *.log
 logs/
