@@ -17284,6 +17284,567 @@ document.addEventListener('DOMContentLoaded', function () {
   document.head.appendChild(el);
 })();
 
+/* =================================================================
+   ✦ PHASE 22 — CINEMATIC LANDING (8-chapter scroll-driven narrative)
+   Inserted as first child of <body>. Existing hero/search preserved
+   downstream. Returning users auto-scroll past.
+   ================================================================= */
+
+const ATLAS_CINEMATIC_KEY = 'atlas-cinematic-seen';
+
+function buildCinematicLanding() {
+  return safeCall(function () {
+    if (document.getElementById('atlasCinematic')) return;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'atlasCinematic';
+    wrap.className = 'cn-wrap';
+
+    /* Chapter HTML — calm, restrained, scroll-driven */
+    wrap.innerHTML =
+      /* Pinned skip button */
+      '<button class="cn-skip" data-action="skip" title="Skip the tour and go to search">' +
+        '<span>SKIP TO SEARCH</span><span class="cn-skip-arrow">↓</span>' +
+      '</button>' +
+      '<div class="cn-progress"><div class="cn-progress-fill" id="cnProgressFill"></div></div>' +
+
+      /* Chapter 1 — OPEN */
+      '<section class="cn-chapter cn-c1" data-chapter="1">' +
+        '<div class="cn-bg cn-bg-globe">' +
+          '<div class="cn-orbit cn-o1"></div>' +
+          '<div class="cn-orbit cn-o2"></div>' +
+          '<div class="cn-orbit cn-o3"></div>' +
+          '<div class="cn-globe-core"></div>' +
+        '</div>' +
+        '<div class="cn-content">' +
+          '<div class="cn-eyebrow">ATLAS · AVIATION INTELLIGENCE</div>' +
+          '<h1 class="cn-h1">Travel intelligence,<br/>reimagined.</h1>' +
+          '<p class="cn-sub">Predict fares, optimize routes, avoid disruptions, and understand every journey before you fly.</p>' +
+          '<div class="cn-cta-row">' +
+            '<button class="cn-cta primary" data-action="scrollnext">Begin exploring</button>' +
+            '<button class="cn-cta ghost" data-action="skip">Watch how ATLAS works</button>' +
+          '</div>' +
+          '<div class="cn-scroll-hint"><span>SCROLL</span><span class="cn-scroll-dot"></span></div>' +
+        '</div>' +
+      '</section>' +
+
+      /* Chapter 2 — ZOOM (corridors emerge) */
+      '<section class="cn-chapter cn-c2" data-chapter="2">' +
+        '<div class="cn-content">' +
+          '<div class="cn-eyebrow">CHAPTER 02 · CORRIDORS</div>' +
+          '<h2 class="cn-h2">Every flight tells a story before takeoff.</h2>' +
+          '<p class="cn-sub">10,000 km of jet stream. 200+ airports. 70+ airlines. ATLAS sees the whole network at once.</p>' +
+          '<div class="cn-corridor-vis">' +
+            '<svg viewBox="0 0 800 280" preserveAspectRatio="xMidYMid meet">' +
+              '<defs>' +
+                '<linearGradient id="cnRoute1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#0a84ff"/><stop offset="100%" stop-color="#30d158"/></linearGradient>' +
+                '<linearGradient id="cnRoute2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#bf5af2"/><stop offset="100%" stop-color="#ffd60a"/></linearGradient>' +
+                '<linearGradient id="cnRoute3" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ff453a"/><stop offset="100%" stop-color="#0a84ff"/></linearGradient>' +
+              '</defs>' +
+              '<path d="M 60 220 Q 400 60 740 200" fill="none" stroke="url(#cnRoute1)" stroke-width="2" class="cn-route-anim" style="animation-delay:0s"/>' +
+              '<path d="M 80 180 Q 380 100 720 240" fill="none" stroke="url(#cnRoute2)" stroke-width="1.6" stroke-dasharray="4 4" class="cn-route-anim" style="animation-delay:0.5s"/>' +
+              '<path d="M 100 60 Q 420 200 700 100" fill="none" stroke="url(#cnRoute3)" stroke-width="1.6" stroke-dasharray="4 4" class="cn-route-anim" style="animation-delay:1s"/>' +
+              '<circle cx="60" cy="220" r="4" fill="#0a84ff"/><circle cx="740" cy="200" r="4" fill="#30d158"/>' +
+              '<circle cx="80" cy="180" r="3" fill="#bf5af2"/><circle cx="720" cy="240" r="3" fill="#ffd60a"/>' +
+              '<circle cx="100" cy="60" r="3" fill="#ff453a"/><circle cx="700" cy="100" r="3" fill="#0a84ff"/>' +
+              '<text x="36" y="240" fill="rgba(255,255,255,0.55)" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700">LHR</text>' +
+              '<text x="744" y="200" fill="rgba(255,255,255,0.55)" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700">HND</text>' +
+              '<text x="704" y="100" fill="rgba(255,255,255,0.55)" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700">SFO</text>' +
+            '</svg>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+
+      /* Chapter 3 — PRICE PREDICTION */
+      '<section class="cn-chapter cn-c3" data-chapter="3">' +
+        '<div class="cn-content">' +
+          '<div class="cn-eyebrow">CHAPTER 03 · PRICE</div>' +
+          '<h2 class="cn-h2">Predict before prices rise.</h2>' +
+          '<p class="cn-sub">A confidence engine reading days-to-departure, fuel signal, demand, and cross-source volatility — every factor cited.</p>' +
+          '<div class="cn-price-vis">' +
+            '<div class="cn-verdict-card">' +
+              '<div class="cn-verdict">BUY NOW</div>' +
+              '<div class="cn-verdict-conf">87% confidence</div>' +
+              '<ul class="cn-verdict-reasons">' +
+                '<li>· 14% below typical for route</li>' +
+                '<li>· Brent crude rising — fares may follow</li>' +
+                '<li>· Booking window: optimal</li>' +
+              '</ul>' +
+            '</div>' +
+            '<svg class="cn-chart" viewBox="0 0 360 120" preserveAspectRatio="none">' +
+              '<defs><linearGradient id="cnChartG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(48,209,88,0.45)"/><stop offset="100%" stop-color="rgba(48,209,88,0)"/></linearGradient></defs>' +
+              '<polyline class="cn-chart-line" points="0,80 36,72 72,84 108,68 144,76 180,52 216,46 252,58 288,40 324,32 360,36" fill="none" stroke="#30d158" stroke-width="1.6"/>' +
+              '<polygon class="cn-chart-fill" points="0,80 36,72 72,84 108,68 144,76 180,52 216,46 252,58 288,40 324,32 360,36 360,120 0,120" fill="url(#cnChartG)"/>' +
+              '<circle cx="324" cy="32" r="3.5" fill="#30d158" class="cn-chart-pulse"/>' +
+            '</svg>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+
+      /* Chapter 4 — ROUTE OPTIMIZATION */
+      '<section class="cn-chapter cn-c4" data-chapter="4">' +
+        '<div class="cn-content">' +
+          '<div class="cn-eyebrow">CHAPTER 04 · ROUTES</div>' +
+          '<h2 class="cn-h2">Not all layovers are equal.</h2>' +
+          '<p class="cn-sub">Cheapest. Fastest. Smartest. Three answers — one decision.</p>' +
+          '<div class="cn-routes-grid">' +
+            '<div class="cn-route-card cheapest">' +
+              '<div class="cn-route-tag">CHEAPEST</div>' +
+              '<div class="cn-route-price">£487</div>' +
+              '<div class="cn-route-meta">via DXB · 18h 40m · 1 stop</div>' +
+            '</div>' +
+            '<div class="cn-route-card fastest">' +
+              '<div class="cn-route-tag">FASTEST</div>' +
+              '<div class="cn-route-price">£612</div>' +
+              '<div class="cn-route-meta">direct · 6h 35m · BA</div>' +
+            '</div>' +
+            '<div class="cn-route-card smartest">' +
+              '<div class="cn-route-tag">SMARTEST</div>' +
+              '<div class="cn-route-price">£548</div>' +
+              '<div class="cn-route-meta">via DOH · 10h 12m · 87/100 score</div>' +
+              '<div class="cn-route-flag">Lowest fatigue</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+
+      /* Chapter 5 — AIRCRAFT INTELLIGENCE */
+      '<section class="cn-chapter cn-c5" data-chapter="5">' +
+        '<div class="cn-content">' +
+          '<div class="cn-eyebrow">CHAPTER 05 · AIRCRAFT</div>' +
+          '<h2 class="cn-h2">Choose better aircraft, not just flights.</h2>' +
+          '<p class="cn-sub">Anatomically-correct schematics for every family. Best/avoid seats. Cabin pressure. Engine noise zones.</p>' +
+          '<div class="cn-aircraft-vis">' +
+            '<svg viewBox="0 0 600 220" preserveAspectRatio="xMidYMid meet">' +
+              /* Wings */
+              '<path d="M 180 110 L 240 60 L 280 60 L 250 110 Z" fill="rgba(0,217,255,0.18)" stroke="rgba(0,217,255,0.55)" stroke-width="0.8"/>' +
+              '<path d="M 180 110 L 240 160 L 280 160 L 250 110 Z" fill="rgba(0,217,255,0.18)" stroke="rgba(0,217,255,0.55)" stroke-width="0.8"/>' +
+              /* Fuselage */
+              '<path d="M 60 110 C 60 100, 80 96, 100 100 L 480 100 C 510 100, 530 105, 540 110 C 530 115, 510 120, 480 120 L 100 120 C 80 124, 60 120, 60 110 Z" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.42)" stroke-width="0.8"/>' +
+              /* Engines */
+              '<ellipse cx="220" cy="72" rx="14" ry="6" fill="rgba(0,217,255,0.32)" stroke="rgba(0,217,255,0.65)" stroke-width="0.6"/>' +
+              '<ellipse cx="220" cy="148" rx="14" ry="6" fill="rgba(0,217,255,0.32)" stroke="rgba(0,217,255,0.65)" stroke-width="0.6"/>' +
+              /* Tail */
+              '<path d="M 480 110 L 530 90 L 540 90 L 540 130 L 530 130 Z" fill="rgba(0,217,255,0.18)" stroke="rgba(0,217,255,0.55)" stroke-width="0.8"/>' +
+              /* Seat zones */
+              '<rect x="100" y="103" width="60" height="14" fill="rgba(255,69,58,0.30)"/>' +     /* F */
+              '<rect x="160" y="103" width="80" height="14" fill="rgba(191,90,242,0.30)"/>' +    /* J */
+              '<rect x="240" y="103" width="80" height="14" fill="rgba(10,132,255,0.30)"/>' +    /* W */
+              '<rect x="320" y="103" width="160" height="14" fill="rgba(48,209,88,0.30)"/>' +    /* Y */
+              /* Callouts */
+              '<text x="100" y="140" fill="#ff453a" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700">F</text>' +
+              '<text x="190" y="140" fill="#bf5af2" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700">J · BUSINESS</text>' +
+              '<text x="270" y="140" fill="#0a84ff" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700">W</text>' +
+              '<text x="380" y="140" fill="#30d158" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700">Y · ECONOMY</text>' +
+              '<text x="60" y="80" fill="rgba(255,255,255,0.62)" font-family="JetBrains Mono, monospace" font-size="9.5" font-weight="700">B777-300ER · 73.9m × 64.8m · 2 ENGINES</text>' +
+            '</svg>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+
+      /* Chapter 6 — 7 AGENTS */
+      '<section class="cn-chapter cn-c6" data-chapter="6">' +
+        '<div class="cn-content">' +
+          '<div class="cn-eyebrow">CHAPTER 06 · INTELLIGENCE</div>' +
+          '<h2 class="cn-h2">Seven minds. One decision.</h2>' +
+          '<p class="cn-sub">A persistent agent system continuously audits 59 live data feeds. Every decision traceable.</p>' +
+          '<div class="cn-agents-grid">' +
+            ['🎛 COMMAND',
+             '🧭 MERIDIAN',
+             '🔧 FORGE',
+             '🔮 ORACLE',
+             '⚙ AEGIS',
+             '🎨 AURA',
+             '🛡 SENTINEL',
+             '📡 PULSE'].map((label, i) =>
+              '<div class="cn-agent" style="animation-delay:' + (i * 0.08) + 's">' + label + '</div>'
+            ).join('') +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+
+      /* Chapter 7 — TRUST */
+      '<section class="cn-chapter cn-c7" data-chapter="7">' +
+        '<div class="cn-content">' +
+          '<div class="cn-eyebrow">CHAPTER 07 · TRANSPARENCY</div>' +
+          '<h2 class="cn-h2">No black boxes.</h2>' +
+          '<p class="cn-sub">Every signal that drives a recommendation, surfaced. Every reason cited.</p>' +
+          '<div class="cn-trust-list">' +
+            ['Climate model · IATA + lat/lng band',
+             'NOTAM · ATC severity feeds',
+             'Brent crude · ICE pricing',
+             'IATA load factor + OAG capacity',
+             '14 booking aggregators',
+             'Real-time delay observability'].map(s =>
+              '<div class="cn-trust-item"><span class="cn-tdot"></span>' + s + '</div>'
+            ).join('') +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+
+      /* Chapter 8 — CONVERT */
+      '<section class="cn-chapter cn-c8" data-chapter="8">' +
+        '<div class="cn-content">' +
+          '<div class="cn-eyebrow">READY</div>' +
+          '<h2 class="cn-h2">Now search smarter.</h2>' +
+          '<p class="cn-sub">You\'ve seen what ATLAS can do. The platform is below — type a route and watch it come alive.</p>' +
+          '<button class="cn-cta primary cn-cta-final" data-action="skip">Begin search ↓</button>' +
+        '</div>' +
+      '</section>';
+
+    /* Insert as first child of body (before nav/hero) */
+    document.body.insertBefore(wrap, document.body.firstChild);
+
+    /* Wire skip + begin actions */
+    wrap.addEventListener('click', function (e) {
+      const a = e.target.closest('[data-action]');
+      if (!a) return;
+      if (a.dataset.action === 'skip') skipCinematic();
+      if (a.dataset.action === 'scrollnext') {
+        const next = wrap.querySelector('.cn-c2');
+        if (next) next.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+
+    /* IntersectionObserver — fires .in-view class on each chapter */
+    if ('IntersectionObserver' in window) {
+      const obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting) en.target.classList.add('in-view');
+        });
+      }, { threshold: 0.30 });
+      wrap.querySelectorAll('.cn-chapter').forEach(s => obs.observe(s));
+    } else {
+      wrap.querySelectorAll('.cn-chapter').forEach(s => s.classList.add('in-view'));
+    }
+
+    /* Progress bar reflects scroll through cinematic */
+    function updateProgress() {
+      const fill = document.getElementById('cnProgressFill');
+      if (!fill) return;
+      const wrapTop = wrap.offsetTop;
+      const wrapH = wrap.offsetHeight;
+      const sc = window.scrollY - wrapTop;
+      const pct = Math.max(0, Math.min(100, (sc / Math.max(1, wrapH - window.innerHeight)) * 100));
+      fill.style.width = pct + '%';
+    }
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress();
+    try { localStorage.setItem(ATLAS_CINEMATIC_KEY, '1'); } catch (e) {}
+  }, null, '22A.buildCinematic');
+}
+
+function skipCinematic() {
+  const wrap = document.getElementById('atlasCinematic');
+  if (!wrap) return;
+  /* Smooth-scroll past cinematic to the existing nav/hero/search */
+  const after = wrap.nextElementSibling || document.querySelector('nav') || document.querySelector('section.hero');
+  if (after && after.scrollIntoView) after.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.skipCinematic = skipCinematic;
+window.replayCinematic = function () {
+  try { localStorage.removeItem(ATLAS_CINEMATIC_KEY); } catch (e) {}
+  buildCinematicLanding();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+/* Decide on boot whether to mount cinematic landing */
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    const visits = (typeof getVisitCount === 'function') ? getVisitCount() : 0;
+    const seen   = !!localStorage.getItem(ATLAS_CINEMATIC_KEY);
+    if (visits <= 1 && !seen) {
+      buildCinematicLanding();
+    }
+  }, 600);
+});
+
+/* CSS */
+(function injectPhase22Css() {
+  if (document.getElementById('phase22-css')) return;
+  const css = `
+    /* ============ Cinematic landing wrapper ============ */
+    .cn-wrap {
+      position: relative;
+      background: radial-gradient(ellipse at top, #0a1428, #050714 60%);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    }
+    .cn-skip {
+      position: fixed;
+      top: 18px; right: 18px;
+      z-index: 100;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 14px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(20px);
+      border: 0.5px solid rgba(255,255,255,0.14);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.78);
+      font: 700 10px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.10em;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .cn-skip:hover { background: rgba(255,255,255,0.10); color: #fff; transform: translateY(-1px); }
+    .cn-skip-arrow { font-size: 14px; line-height: 1; opacity: 0.85; }
+
+    .cn-progress {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: rgba(255,255,255,0.04);
+      z-index: 99;
+    }
+    .cn-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0a84ff, #30d158);
+      transition: width 0.05s linear;
+    }
+
+    /* Chapter base */
+    .cn-chapter {
+      position: relative;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 80px 32px;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1);
+    }
+    .cn-chapter.in-view { opacity: 1; transform: translateY(0); }
+    .cn-content { position: relative; z-index: 2; max-width: 920px; text-align: center; }
+    .cn-eyebrow {
+      font: 700 10px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.22em;
+      color: #0a84ff;
+      margin-bottom: 22px;
+      opacity: 0.85;
+    }
+    .cn-h1 {
+      font: 800 clamp(36px, 7vw, 84px)/1.05 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.035em;
+      margin-bottom: 22px;
+      background: linear-gradient(180deg, #fff 30%, rgba(255,255,255,0.65));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .cn-h2 {
+      font: 800 clamp(28px, 5vw, 56px)/1.1 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.025em;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+    .cn-sub {
+      font: 500 clamp(14px, 1.5vw, 18px)/1.55 -apple-system, 'Inter', sans-serif;
+      color: rgba(255,255,255,0.62);
+      max-width: 640px; margin: 0 auto 36px;
+    }
+    .cn-cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .cn-cta {
+      font: 700 12px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.12em;
+      padding: 14px 26px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .cn-cta.primary {
+      background: #0a84ff; color: #fff; border: 0.5px solid #0a84ff;
+    }
+    .cn-cta.primary:hover { background: #007ce0; transform: translateY(-1px); box-shadow: 0 10px 26px rgba(10,132,255,0.30); }
+    .cn-cta.ghost {
+      background: transparent; color: rgba(255,255,255,0.78);
+      border: 0.5px solid rgba(255,255,255,0.18);
+    }
+    .cn-cta.ghost:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .cn-cta-final { padding: 16px 32px; font-size: 13px; }
+    .cn-scroll-hint {
+      position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      font: 700 9px/1 'JetBrains Mono', monospace; letter-spacing: 0.20em;
+      color: rgba(255,255,255,0.42);
+      animation: cnHint 2.4s ease-in-out infinite;
+    }
+    .cn-scroll-dot { width: 4px; height: 4px; border-radius: 50%; background: #0a84ff; box-shadow: 0 0 6px #0a84ff; }
+    @keyframes cnHint { 0%,100% { transform: translate(-50%, 0); opacity: 0.6; } 50% { transform: translate(-50%, 4px); opacity: 1; } }
+
+    /* Chapter 1 — animated globe orbits */
+    .cn-bg-globe {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    .cn-globe-core {
+      width: 360px; height: 360px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(10,132,255,0.20), rgba(10,132,255,0.04) 60%, transparent 70%);
+      box-shadow: inset 0 0 60px rgba(10,132,255,0.10);
+    }
+    .cn-orbit {
+      position: absolute;
+      border: 0.5px solid rgba(10,132,255,0.20);
+      border-radius: 50%;
+    }
+    .cn-orbit::before {
+      content: '';
+      position: absolute; top: -3px; left: 50%; transform: translateX(-50%);
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #0a84ff;
+      box-shadow: 0 0 12px #0a84ff;
+    }
+    .cn-o1 { width: 480px; height: 480px; animation: cnOrbit 24s linear infinite; }
+    .cn-o2 { width: 620px; height: 620px; animation: cnOrbit 36s linear infinite reverse; }
+    .cn-o2::before { background: #30d158; box-shadow: 0 0 12px #30d158; }
+    .cn-o3 { width: 760px; height: 760px; animation: cnOrbit 48s linear infinite; }
+    .cn-o3::before { background: #ffd60a; box-shadow: 0 0 12px #ffd60a; }
+    @keyframes cnOrbit { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+
+    /* Chapter 2 — corridor svg */
+    .cn-corridor-vis { margin: 0 auto; max-width: 800px; }
+    .cn-corridor-vis svg { width: 100%; height: auto; }
+    .cn-route-anim {
+      stroke-dasharray: 1000;
+      stroke-dashoffset: 1000;
+      animation: cnDraw 2s cubic-bezier(0.16,1,0.3,1) forwards;
+    }
+    .cn-chapter.in-view .cn-route-anim { animation-name: cnDraw; }
+    @keyframes cnDraw { to { stroke-dashoffset: 0; } }
+
+    /* Chapter 3 — verdict + chart */
+    .cn-price-vis {
+      display: grid;
+      grid-template-columns: minmax(220px, 280px) 1fr;
+      gap: 28px;
+      align-items: center;
+      max-width: 800px; margin: 0 auto;
+    }
+    .cn-verdict-card {
+      padding: 22px;
+      background: linear-gradient(180deg, rgba(48,209,88,0.16), rgba(48,209,88,0.04));
+      border: 0.5px solid rgba(48,209,88,0.45);
+      border-radius: 14px;
+      text-align: left;
+    }
+    .cn-verdict { font: 800 22px/1 'Inter', sans-serif; color: #30d158; letter-spacing: 0.04em; }
+    .cn-verdict-conf { font: 700 11px/1 'JetBrains Mono', monospace; letter-spacing: 0.10em; opacity: 0.78; margin-top: 8px; }
+    .cn-verdict-reasons { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px;
+      font: 500 12px/1.4 'Inter', sans-serif; color: rgba(255,255,255,0.65); }
+    .cn-chart { width: 100%; height: 120px; }
+    .cn-chart-line { stroke-dasharray: 600; stroke-dashoffset: 600; }
+    .cn-chapter.in-view .cn-chart-line { animation: cnDraw 1.8s 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
+    .cn-chart-fill { opacity: 0; }
+    .cn-chapter.in-view .cn-chart-fill { animation: cnFadeIn 1.8s 0.5s ease-out forwards; }
+    @keyframes cnFadeIn { to { opacity: 1; } }
+    .cn-chart-pulse { transform-origin: 324px 32px; animation: cnPulseDot 2s ease-in-out infinite; }
+    @keyframes cnPulseDot { 0%,100% { transform: scale(1); } 50% { transform: scale(1.6); } }
+
+    /* Chapter 4 — route comparison cards */
+    .cn-routes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      max-width: 760px; margin: 0 auto;
+    }
+    .cn-route-card {
+      padding: 22px 22px 24px;
+      border-radius: 14px;
+      border: 0.5px solid rgba(255,255,255,0.10);
+      text-align: left;
+      transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    .cn-chapter.in-view .cn-route-card { opacity: 1; transform: translateY(0); transition-delay: 0.1s; }
+    .cn-chapter.in-view .cn-route-card:nth-child(2) { transition-delay: 0.25s; }
+    .cn-chapter.in-view .cn-route-card:nth-child(3) { transition-delay: 0.40s; }
+    .cn-route-card.cheapest  { background: linear-gradient(180deg, rgba(48,209,88,0.12), rgba(48,209,88,0.02)); border-color: rgba(48,209,88,0.42); }
+    .cn-route-card.fastest   { background: linear-gradient(180deg, rgba(10,132,255,0.12), rgba(10,132,255,0.02)); border-color: rgba(10,132,255,0.42); }
+    .cn-route-card.smartest  { background: linear-gradient(180deg, rgba(255,214,10,0.12), rgba(255,214,10,0.02)); border-color: rgba(255,214,10,0.42); }
+    .cn-route-tag { font: 700 9px/1 'JetBrains Mono', monospace; letter-spacing: 0.18em; opacity: 0.78; margin-bottom: 12px; }
+    .cn-route-card.cheapest .cn-route-tag { color: #30d158; }
+    .cn-route-card.fastest .cn-route-tag { color: #0a84ff; }
+    .cn-route-card.smartest .cn-route-tag { color: #ffd60a; }
+    .cn-route-price { font: 800 32px/1 'Inter', sans-serif; letter-spacing: -0.02em; color: #fff; }
+    .cn-route-meta { font: 500 12px/1.4 'Inter', sans-serif; color: rgba(255,255,255,0.62); margin-top: 8px; }
+    .cn-route-flag {
+      display: inline-block; margin-top: 14px;
+      font: 700 10px/1 'JetBrains Mono', monospace; letter-spacing: 0.10em;
+      padding: 6px 10px; border-radius: 5px;
+      background: rgba(255,214,10,0.18); color: #ffd60a; border: 0.5px solid rgba(255,214,10,0.36);
+    }
+
+    /* Chapter 5 — aircraft */
+    .cn-aircraft-vis { max-width: 700px; margin: 0 auto; }
+    .cn-aircraft-vis svg { width: 100%; height: auto; }
+
+    /* Chapter 6 — agents grid */
+    .cn-agents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      max-width: 720px; margin: 0 auto;
+    }
+    .cn-agent {
+      padding: 18px 14px;
+      background: rgba(255,255,255,0.03);
+      border: 0.5px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      font: 700 12px/1.4 'JetBrains Mono', monospace; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.78);
+      opacity: 0;
+      transform: scale(0.92);
+      animation: cnAgentIn 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
+      animation-play-state: paused;
+    }
+    .cn-chapter.in-view .cn-agent { animation-play-state: running; }
+    @keyframes cnAgentIn { to { opacity: 1; transform: scale(1); } }
+
+    /* Chapter 7 — trust list */
+    .cn-trust-list {
+      max-width: 560px; margin: 0 auto;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .cn-trust-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      background: rgba(0,0,0,0.30);
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      font: 500 13px/1.3 'Inter', sans-serif;
+      color: rgba(255,255,255,0.82);
+      text-align: left;
+    }
+    .cn-tdot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #30d158; box-shadow: 0 0 6px #30d158;
+      flex: 0 0 8px;
+      animation: cnTrust 2.4s ease-in-out infinite;
+    }
+    @keyframes cnTrust { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+    @media (max-width: 760px) {
+      .cn-skip { padding: 7px 10px; }
+      .cn-skip span:first-child { display: none; }
+      .cn-h1 { font-size: 38px; }
+      .cn-h2 { font-size: 26px; }
+      .cn-globe-core { width: 240px; height: 240px; }
+      .cn-o1 { width: 320px; height: 320px; }
+      .cn-o2 { width: 420px; height: 420px; }
+      .cn-o3 { width: 520px; height: 520px; }
+      .cn-price-vis { grid-template-columns: 1fr; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase22-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
 function init() {
   bindUI();
   bindCurrencyPicker();
