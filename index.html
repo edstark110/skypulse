@@ -16922,6 +16922,368 @@ document.addEventListener('DOMContentLoaded', function () {
   document.head.appendChild(el);
 })();
 
+/* =================================================================
+   ✦ PHASE 21 — LIVE MAP + ROUTE EXPERIENCE REBUILD
+   21A · route corridor v2 (glow + directional flow particles + hub split)
+   21B · sticky map when in specific-route mode
+   21C · hover sync: flight row hover → map highlights
+   21D · floating map layer toggle
+   21E · click connection row → 2-leg geodesic with hub midpoint pulsed
+   ================================================================= */
+
+/* Helper: build smooth quadratic geodesic from (x1,y1) to (x2,y2) with
+   apex height proportional to distance. */
+function _phase21_path(x1, y1, x2, y2, archScale) {
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2 - Math.min(160, Math.abs(x2 - x1) * (archScale || 0.22));
+  return 'M ' + x1 + ' ' + y1 + ' Q ' + mx + ' ' + my + ' ' + x2 + ' ' + y2;
+}
+
+/* -------- 21A. ROUTE CORRIDOR v2 (replace setActiveRoute output) -------- */
+const _phase21_origSetActiveRoute = (typeof setActiveRoute === 'function') ? setActiveRoute : null;
+if (_phase21_origSetActiveRoute) {
+  setActiveRoute = function (from, to, directs) {
+    _phase21_origSetActiveRoute.apply(this, arguments);
+    safeCall(function () {
+      if (!from || !to || from.length < 5 || to.length < 5) return;
+      const svg = document.getElementById('worldSvg');
+      if (!svg) return;
+      const layer = svg.querySelector('#activeRouteLayer');
+      if (!layer) return;
+
+      const [x1, y1] = project(from[3], from[4]);
+      const [x2, y2] = project(to[3], to[4]);
+      const path = _phase21_path(x1, y1, x2, y2, 0.20);
+
+      /* Replace simple line with glowing geodesic + directional flow */
+      layer.innerHTML =
+        '<defs>' +
+          '<linearGradient id="rcGrad21" x1="0" y1="0" x2="1" y2="0">' +
+            '<stop offset="0%"  stop-color="#0a84ff" stop-opacity="0.95"/>' +
+            '<stop offset="50%" stop-color="#00d9ff" stop-opacity="0.95"/>' +
+            '<stop offset="100%" stop-color="#30d158" stop-opacity="0.95"/>' +
+          '</linearGradient>' +
+          '<filter id="rcGlow21" x="-30%" y="-30%" width="160%" height="160%">' +
+            '<feGaussianBlur stdDeviation="2.4" result="b"/>' +
+            '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>' +
+          '</filter>' +
+          '<path id="rcCorridor21" d="' + path + '"/>' +
+        '</defs>' +
+        /* Faint outer halo */
+        '<use href="#rcCorridor21" stroke="rgba(0,217,255,0.25)" stroke-width="6" fill="none" filter="url(#rcGlow21)"/>' +
+        /* Bright core */
+        '<use href="#rcCorridor21" stroke="url(#rcGrad21)" stroke-width="1.6" fill="none"/>' +
+        /* Origin endpoint */
+        '<circle cx="' + x1 + '" cy="' + y1 + '" r="3" fill="#0a84ff"/>' +
+        '<circle cx="' + x1 + '" cy="' + y1 + '" r="6" fill="none" stroke="#0a84ff" stroke-width="0.8" stroke-opacity="0.6">' +
+          '<animate attributeName="r" from="4" to="14" dur="2.4s" repeatCount="indefinite"/>' +
+          '<animate attributeName="stroke-opacity" from="0.7" to="0" dur="2.4s" repeatCount="indefinite"/>' +
+        '</circle>' +
+        /* Destination endpoint */
+        '<circle cx="' + x2 + '" cy="' + y2 + '" r="3" fill="#30d158"/>' +
+        '<circle cx="' + x2 + '" cy="' + y2 + '" r="6" fill="none" stroke="#30d158" stroke-width="0.8" stroke-opacity="0.6">' +
+          '<animate attributeName="r" from="4" to="14" dur="2.4s" begin="1.2s" repeatCount="indefinite"/>' +
+          '<animate attributeName="stroke-opacity" from="0.7" to="0" dur="2.4s" begin="1.2s" repeatCount="indefinite"/>' +
+        '</circle>' +
+        /* Endpoint code labels */
+        '<text x="' + (x1 + 6) + '" y="' + (y1 - 6) + '" fill="#0a84ff" font-family="Inter, sans-serif" font-size="10" font-weight="700">' + from[0] + '</text>' +
+        '<text x="' + (x2 + 6) + '" y="' + (y2 - 6) + '" fill="#30d158" font-family="Inter, sans-serif" font-size="10" font-weight="700">' + to[0] + '</text>' +
+        /* 3 directional flow particles, staggered along the corridor */
+        '<g class="rc-flow21">' +
+          '<circle r="1.6" fill="#fff">' +
+            '<animateMotion dur="6s" repeatCount="indefinite" rotate="auto"><mpath href="#rcCorridor21"/></animateMotion>' +
+          '</circle>' +
+          '<circle r="1.6" fill="#fff" opacity="0.7">' +
+            '<animateMotion dur="6s" begin="2s" repeatCount="indefinite" rotate="auto"><mpath href="#rcCorridor21"/></animateMotion>' +
+          '</circle>' +
+          '<circle r="1.6" fill="#fff" opacity="0.5">' +
+            '<animateMotion dur="6s" begin="4s" repeatCount="indefinite" rotate="auto"><mpath href="#rcCorridor21"/></animateMotion>' +
+          '</circle>' +
+        '</g>';
+    }, null, '21A.routeCorridorV2');
+  };
+}
+
+/* -------- 21E. CONNECTION LEG SPLIT — render via hub --------
+   Public API: setConnectionRoute(from, to, hub) draws 2 legs */
+function setConnectionRoute(from, to, hub) {
+  return safeCall(function () {
+    if (!from || !to || !hub || from.length < 5 || to.length < 5 || hub.length < 5) return;
+    const svg = document.getElementById('worldSvg');
+    if (!svg) return;
+    let layer = svg.querySelector('#activeRouteLayer');
+    if (!layer) {
+      layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      layer.setAttribute('id', 'activeRouteLayer');
+      svg.appendChild(layer);
+    }
+    const [x1, y1] = project(from[3], from[4]);
+    const [xh, yh] = project(hub[3], hub[4]);
+    const [x2, y2] = project(to[3], to[4]);
+    const leg1 = _phase21_path(x1, y1, xh, yh, 0.18);
+    const leg2 = _phase21_path(xh, yh, x2, y2, 0.18);
+    layer.innerHTML =
+      '<defs>' +
+        '<linearGradient id="rcLeg1G21" x1="0" y1="0" x2="1" y2="0">' +
+          '<stop offset="0%" stop-color="#0a84ff" stop-opacity="0.95"/>' +
+          '<stop offset="100%" stop-color="#ffd60a" stop-opacity="0.95"/>' +
+        '</linearGradient>' +
+        '<linearGradient id="rcLeg2G21" x1="0" y1="0" x2="1" y2="0">' +
+          '<stop offset="0%" stop-color="#ffd60a" stop-opacity="0.95"/>' +
+          '<stop offset="100%" stop-color="#30d158" stop-opacity="0.95"/>' +
+        '</linearGradient>' +
+        '<path id="rcLeg1Path21" d="' + leg1 + '"/>' +
+        '<path id="rcLeg2Path21" d="' + leg2 + '"/>' +
+      '</defs>' +
+      /* Leg 1 */
+      '<use href="#rcLeg1Path21" stroke="rgba(255,214,10,0.22)" stroke-width="6" fill="none" filter="url(#rcGlow21)"/>' +
+      '<use href="#rcLeg1Path21" stroke="url(#rcLeg1G21)" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/>' +
+      /* Leg 2 */
+      '<use href="#rcLeg2Path21" stroke="rgba(255,214,10,0.22)" stroke-width="6" fill="none" filter="url(#rcGlow21)"/>' +
+      '<use href="#rcLeg2Path21" stroke="url(#rcLeg2G21)" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/>' +
+      /* Origin */
+      '<circle cx="' + x1 + '" cy="' + y1 + '" r="3" fill="#0a84ff"/>' +
+      '<text x="' + (x1 + 6) + '" y="' + (y1 - 6) + '" fill="#0a84ff" font-family="Inter, sans-serif" font-size="10" font-weight="700">' + from[0] + '</text>' +
+      /* HUB — bigger, gold, pulsing */
+      '<circle cx="' + xh + '" cy="' + yh + '" r="4.5" fill="#ffd60a"/>' +
+      '<circle cx="' + xh + '" cy="' + yh + '" r="9" fill="none" stroke="#ffd60a" stroke-width="1.0" stroke-opacity="0.6">' +
+        '<animate attributeName="r" from="6" to="22" dur="2.6s" repeatCount="indefinite"/>' +
+        '<animate attributeName="stroke-opacity" from="0.8" to="0" dur="2.6s" repeatCount="indefinite"/>' +
+      '</circle>' +
+      '<text x="' + (xh + 8) + '" y="' + (yh - 8) + '" fill="#ffd60a" font-family="Inter, sans-serif" font-size="10.5" font-weight="800" letter-spacing="0.04em">' + hub[0] + ' (transit)</text>' +
+      /* Destination */
+      '<circle cx="' + x2 + '" cy="' + y2 + '" r="3" fill="#30d158"/>' +
+      '<text x="' + (x2 + 6) + '" y="' + (y2 - 6) + '" fill="#30d158" font-family="Inter, sans-serif" font-size="10" font-weight="700">' + to[0] + '</text>' +
+      /* Flow particles on each leg */
+      '<g class="rc-flow21">' +
+        '<circle r="1.5" fill="#fff"><animateMotion dur="4.5s" repeatCount="indefinite" rotate="auto"><mpath href="#rcLeg1Path21"/></animateMotion></circle>' +
+        '<circle r="1.5" fill="#fff" opacity="0.6"><animateMotion dur="4.5s" begin="1.5s" repeatCount="indefinite" rotate="auto"><mpath href="#rcLeg1Path21"/></animateMotion></circle>' +
+        '<circle r="1.5" fill="#fff"><animateMotion dur="4.5s" begin="0.5s" repeatCount="indefinite" rotate="auto"><mpath href="#rcLeg2Path21"/></animateMotion></circle>' +
+        '<circle r="1.5" fill="#fff" opacity="0.6"><animateMotion dur="4.5s" begin="2s" repeatCount="indefinite" rotate="auto"><mpath href="#rcLeg2Path21"/></animateMotion></circle>' +
+      '</g>';
+    /* Zoom to fit all 3 points */
+    if (typeof MapEngine !== 'undefined' && MapEngine.zoomToBoundingBox) {
+      MapEngine.zoomToBoundingBox([from, hub, to]);
+    } else if (typeof zoomToRoute === 'function') {
+      zoomToRoute(from, to);
+    }
+  }, null, '21E.setConnectionRoute');
+}
+window.setConnectionRoute = setConnectionRoute;
+
+/* -------- 21B. STICKY MAP WHEN IN SPECIFIC-ROUTE MODE -------- */
+function applyMapStickyMode() {
+  return safeCall(function () {
+    const isSpecific = state.destination && state.destination.code && state.destination.code !== 'ANY';
+    document.body.dataset.routeMode = isSpecific ? 'specific' : 'anywhere';
+  }, null, '21B.applyStickyMode');
+}
+const _phase21_origPerformRouteSearch = (typeof performRouteSearch === 'function') ? performRouteSearch : null;
+if (_phase21_origPerformRouteSearch) {
+  performRouteSearch = function () {
+    _phase21_origPerformRouteSearch.apply(this, arguments);
+    setTimeout(applyMapStickyMode, 50);
+  };
+}
+
+/* -------- 21C. HOVER SYNC + 21E. CLICK CONNECTION ROW SPLIT -------- */
+function setupRouteHoverAndClick() {
+  return safeCall(function () {
+    if (window._phase21_hoverBound) return;
+    window._phase21_hoverBound = true;
+
+    /* Hover on direct row → glow active route corridor + pulse the airline label */
+    document.addEventListener('mouseenter', function (e) {
+      const row = e.target && e.target.closest && e.target.closest('#directsTable tr.flight-row');
+      if (!row) return;
+      const layer = document.querySelector('#activeRouteLayer');
+      if (layer) layer.classList.add('rc-hovered');
+    }, true);
+    document.addEventListener('mouseleave', function (e) {
+      const row = e.target && e.target.closest && e.target.closest('#directsTable tr.flight-row');
+      if (!row) return;
+      const layer = document.querySelector('#activeRouteLayer');
+      if (layer) layer.classList.remove('rc-hovered');
+    }, true);
+
+    /* Hover on connection row → re-render route as 2-leg via that hub */
+    document.addEventListener('mouseenter', function (e) {
+      const row = e.target && e.target.closest && e.target.closest('#connectionsTable tr.flight-row');
+      if (!row) return;
+      const tbody = row.parentElement;
+      if (!tbody) return;
+      const rows = Array.from(tbody.querySelectorAll('tr.flight-row'));
+      const idx = rows.indexOf(row);
+      const conn = (STATE.flights && STATE.flights.connections) ? STATE.flights.connections[idx] : null;
+      if (!conn) return;
+      const fromCode = state.origin && state.origin.code;
+      const toCode   = state.destination && state.destination.code;
+      const from = airportByCode(fromCode);
+      const to   = airportByCode(toCode);
+      const hub  = airportByCode(conn.hub);
+      if (from && to && hub) setConnectionRoute(from, to, hub);
+    }, true);
+
+    /* Mouse leave connection table → restore direct corridor */
+    document.addEventListener('mouseleave', function (e) {
+      const tbl = e.target && e.target.closest && e.target.closest('#connectionsTable');
+      if (!tbl) return;
+      /* Only restore if mouse actually left the table itself, not just a child */
+      if (e.relatedTarget && tbl.contains(e.relatedTarget)) return;
+      const fromCode = state.origin && state.origin.code;
+      const toCode   = state.destination && state.destination.code;
+      const from = airportByCode(fromCode);
+      const to   = airportByCode(toCode);
+      if (from && to && typeof setActiveRoute === 'function') {
+        const directs = (STATE.flights && STATE.flights.directs) || [];
+        setActiveRoute(from, to, directs);
+      }
+    }, true);
+  }, null, '21C.hoverSync');
+}
+
+/* -------- 21D. FLOATING MAP LAYER TOGGLE -------- */
+function buildLayerToggle() {
+  return safeCall(function () {
+    if (document.getElementById('atlasMapLayers')) return;
+    const layers = [
+      { id: 'continentsLayer', name: 'Continents',    on: true },
+      { id: 'heatLayer',       name: 'Heat zones',    on: true },
+      { id: 'planesLayer',     name: 'Live aircraft', on: true },
+      { id: 'activeRouteLayer',name: 'Active route',  on: true },
+      { id: 'routesLayer',     name: 'Network',       on: false }
+    ];
+    const wrap = document.createElement('div');
+    wrap.id = 'atlasMapLayers';
+    wrap.className = 'mlc-card';
+    wrap.innerHTML =
+      '<div class="mlc-head">MAP LAYERS</div>' +
+      layers.map(l =>
+        '<label class="mlc-row">' +
+          '<input type="checkbox" data-layer="' + l.id + '"' + (l.on ? ' checked' : '') + '/>' +
+          '<span class="mlc-name">' + l.name + '</span>' +
+          '<span class="mlc-dot mlc-' + (l.on ? 'on' : 'off') + '"></span>' +
+        '</label>'
+      ).join('');
+    /* Position over the map */
+    const mapSection = document.getElementById('globe') || document.querySelector('section.world-map') || document.getElementById('worldSvg')?.closest('section');
+    if (mapSection) { mapSection.style.position = 'relative'; mapSection.appendChild(wrap); }
+    else document.body.appendChild(wrap);
+
+    wrap.addEventListener('change', function (e) {
+      if (e.target.matches('input[type="checkbox"]')) {
+        const id = e.target.dataset.layer;
+        const layer = document.getElementById(id);
+        if (layer) layer.style.display = e.target.checked ? '' : 'none';
+        const dot = e.target.parentElement.querySelector('.mlc-dot');
+        dot.className = 'mlc-dot mlc-' + (e.target.checked ? 'on' : 'off');
+      }
+    });
+  }, null, '21D.layerToggle');
+}
+
+/* -------- BOOT -------- */
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    setupRouteHoverAndClick();
+    buildLayerToggle();
+    applyMapStickyMode();
+  }, 1700);
+});
+
+(function injectPhase21Css() {
+  if (document.getElementById('phase21-css')) return;
+  const css = `
+    /* §21A — corridor v2 hover state */
+    #activeRouteLayer { transition: filter 0.25s ease; }
+    #activeRouteLayer.rc-hovered { filter: brightness(1.20) saturate(1.1); }
+    .rc-flow21 circle { filter: drop-shadow(0 0 3px rgba(255,255,255,0.65)); }
+
+    /* §21B — sticky map in specific-route mode */
+    body[data-route-mode="specific"] #globe,
+    body[data-route-mode="specific"] section.world-map {
+      position: sticky; top: 0; z-index: 30;
+      max-height: 60vh;
+    }
+    body[data-route-mode="specific"] #worldSvg {
+      max-height: 60vh;
+    }
+
+    /* §21D — floating map layer toggle */
+    .mlc-card {
+      position: absolute;
+      right: 18px; top: 18px;
+      z-index: 20;
+      padding: 10px 12px 8px;
+      background: rgba(10, 11, 15, 0.85);
+      backdrop-filter: blur(28px) saturate(180%);
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      min-width: 180px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.40);
+    }
+    .mlc-head {
+      font: 700 9px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.18em;
+      color: rgba(255,255,255,0.50);
+      margin-bottom: 8px;
+      padding-bottom: 7px;
+      border-bottom: 0.5px solid rgba(255,255,255,0.06);
+    }
+    .mlc-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 0;
+      cursor: pointer;
+    }
+    .mlc-row input[type="checkbox"] {
+      appearance: none; -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border: 1.2px solid rgba(255,255,255,0.32);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+    }
+    .mlc-row input[type="checkbox"]:checked {
+      background: #0a84ff;
+      border-color: #0a84ff;
+    }
+    .mlc-row input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font: 800 10px/1 sans-serif;
+      color: #fff;
+    }
+    .mlc-name {
+      flex: 1;
+      font: 500 11px/1 -apple-system, 'Inter', sans-serif;
+      color: rgba(255,255,255,0.78);
+    }
+    .mlc-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      box-shadow: 0 0 4px currentColor;
+      transition: all 0.15s;
+    }
+    .mlc-on  { background: #30d158; color: #30d158; }
+    .mlc-off { background: rgba(255,255,255,0.20); color: rgba(255,255,255,0.20); box-shadow: none; }
+
+    /* Connection rows: cursor hint that hover changes the map */
+    #connectionsTable tr.flight-row:hover { background: rgba(255,214,10,0.04); }
+
+    @media (max-width: 760px) {
+      .mlc-card { right: 8px; top: 8px; min-width: 150px; padding: 8px 10px 6px; }
+      .mlc-name { font-size: 10px; }
+      body[data-route-mode="specific"] #globe { max-height: 45vh; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase21-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
 function init() {
   bindUI();
   bindCurrencyPicker();
