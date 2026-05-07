@@ -16336,6 +16336,592 @@ document.addEventListener('DOMContentLoaded', function () {
   }, 250);
 });
 
+/* =================================================================
+   ✦ PHASE 20 — HOMEPAGE REBUILD
+   20A onboarding modal · 20B intel ribbon · 20C feature showcase
+   20D trust section · 20E welcome-back personalization
+   ================================================================= */
+
+/* -------- Visit tracking (localStorage) -------- */
+const ATLAS_VISIT_KEY = 'atlas-visits';
+const ATLAS_ONBOARDED_KEY = 'atlas-onboarded';
+function recordVisit() {
+  return safeCall(function () {
+    const n = parseInt(localStorage.getItem(ATLAS_VISIT_KEY) || '0', 10) + 1;
+    localStorage.setItem(ATLAS_VISIT_KEY, String(n));
+    localStorage.setItem('atlas-last-visit', new Date().toISOString());
+    return n;
+  }, 1, 'recordVisit');
+}
+function getVisitCount() {
+  return parseInt(localStorage.getItem(ATLAS_VISIT_KEY) || '0', 10);
+}
+function isOnboarded() {
+  return localStorage.getItem(ATLAS_ONBOARDED_KEY) === '1';
+}
+function markOnboarded() {
+  try { localStorage.setItem(ATLAS_ONBOARDED_KEY, '1'); } catch (e) {}
+}
+
+/* -------- 20A. ONBOARDING MODAL -------- */
+const ONBOARDING_CARDS = [
+  { glyph: '◉', title: 'Predict before prices rise',
+    body: 'Fare confidence engine reads days-to-departure, fuel signal, demand pressure, and cross-source volatility to tell you BUY NOW · WAIT · MONITOR — with reasoning.',
+    accent: '#30d158' },
+  { glyph: '◇', title: 'Avoid risky layovers',
+    body: 'Live ATC severity, hub quality, and connection windows feed a per-flight Route DNA. See comfort, reliability, sleep, stress, delay, and value at a glance.',
+    accent: '#0a84ff' },
+  { glyph: '✈', title: 'Choose better aircraft, not just flights',
+    body: 'Anatomically-correct schematics for every aircraft family. Best/avoid seats, cabin pressure quality, wing visibility, lavatory proximity.',
+    accent: '#bf5af2' },
+  { glyph: '🛡', title: 'Operational intelligence built in',
+    body: '7 internal agents continuously audit 59 data feeds. Climate-aware weather, ATC overlays, source registry, observability ring buffer — every decision traceable.',
+    accent: '#ffd60a' },
+  { glyph: '◎', title: 'Travel decisions, optimized',
+    body: 'ATLAS Strategist proactively suggests date shifts, hub alternatives, and day-of-week tips — every recommendation explainable.',
+    accent: '#ff9f0a' }
+];
+
+function buildOnboardingModal() {
+  return safeCall(function () {
+    if (document.getElementById('atlasOnboarding')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'atlasOnboarding';
+    wrap.className = 'ob-overlay';
+    wrap.innerHTML =
+      '<div class="ob-card">' +
+        '<button class="ob-skip" data-action="skip">Skip</button>' +
+        '<div class="ob-stage"></div>' +
+        '<div class="ob-foot">' +
+          '<div class="ob-dots"></div>' +
+          '<div class="ob-actions">' +
+            '<button class="ob-btn ob-back" data-action="back">Back</button>' +
+            '<button class="ob-btn ob-next primary" data-action="next">Continue</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+
+    let idx = 0;
+    function render() {
+      const card = ONBOARDING_CARDS[idx];
+      const stage = wrap.querySelector('.ob-stage');
+      stage.innerHTML =
+        '<div class="ob-glyph" style="background:' + card.accent + '20; color:' + card.accent + '; border-color:' + card.accent + '60">' + card.glyph + '</div>' +
+        '<div class="ob-title">' + card.title + '</div>' +
+        '<div class="ob-body">' + card.body + '</div>';
+      const dots = wrap.querySelector('.ob-dots');
+      dots.innerHTML = ONBOARDING_CARDS.map((_, i) =>
+        '<span class="ob-dot' + (i === idx ? ' on' : '') + '" data-i="' + i + '"></span>'
+      ).join('');
+      wrap.querySelector('.ob-back').style.visibility = idx === 0 ? 'hidden' : 'visible';
+      wrap.querySelector('.ob-next').textContent = idx === ONBOARDING_CARDS.length - 1 ? 'Start' : 'Continue';
+    }
+    function close() {
+      wrap.classList.add('closing');
+      setTimeout(function () { wrap.remove(); }, 250);
+      markOnboarded();
+    }
+    wrap.addEventListener('click', function (e) {
+      const a = e.target.closest('[data-action]');
+      if (a) {
+        const act = a.dataset.action;
+        if (act === 'skip') return close();
+        if (act === 'next') {
+          if (idx === ONBOARDING_CARDS.length - 1) return close();
+          idx++; render();
+        }
+        if (act === 'back') { idx = Math.max(0, idx - 1); render(); }
+      }
+      const dot = e.target.closest('.ob-dot');
+      if (dot) { idx = parseInt(dot.dataset.i, 10); render(); }
+      if (e.target === wrap) close();
+    });
+    render();
+    setTimeout(function () { wrap.classList.add('open'); }, 30);
+  }, null, '20A.onboarding');
+}
+window.openOnboarding = function () {
+  try { localStorage.removeItem(ATLAS_ONBOARDED_KEY); } catch (e) {}
+  buildOnboardingModal();
+};
+
+/* -------- 20B. LIVE INTELLIGENCE RIBBON -------- */
+function generateIntelItems() {
+  const items = [];
+  /* Fare moves from macro fuel signal */
+  if (typeof MACRO_STATE !== 'undefined' && MACRO_STATE.brent) {
+    const fd = ((MACRO_STATE.brent.val - MACRO_STATE.brent.base) / MACRO_STATE.brent.base) * 100;
+    if (fd > 2) items.push({ icon: '⛽', text: 'Brent crude up ' + fd.toFixed(1) + '% — fares may follow', tone: 'warn' });
+    else if (fd < -2) items.push({ icon: '⛽', text: 'Brent crude down ' + Math.abs(fd).toFixed(1) + '% — fare easing window', tone: 'good' });
+  }
+  /* Weather impacts from STATE.weather */
+  if (typeof STATE !== 'undefined' && STATE.weather) {
+    if (STATE.weather.origin && (STATE.weather.origin.kind === 'storm' || STATE.weather.origin.kind === 'rain')) {
+      items.push({ icon: '🌧', text: 'Weather impact at ' + STATE.weather.origin.code + ' — ' + STATE.weather.origin.kind + ' conditions', tone: 'warn' });
+    }
+    if (STATE.weather.destination && STATE.weather.destination.kind === 'sunny') {
+      items.push({ icon: '☀', text: STATE.weather.destination.code + ' clear · ' + STATE.weather.destination.tempC + '°C', tone: 'good' });
+    }
+  }
+  /* ATC alerts */
+  if (typeof STATE !== 'undefined' && STATE.atc) {
+    if (STATE.atc.origin && STATE.atc.origin.severity !== 'nominal') {
+      items.push({ icon: '🛰', text: STATE.atc.origin.code + ' airspace ' + STATE.atc.origin.severity + ' · avg ' + STATE.atc.origin.delay + 'm delay', tone: 'warn' });
+    }
+    if (STATE.atc.enRoute && STATE.atc.enRoute.congestion > 65) {
+      items.push({ icon: '◈', text: 'En-route congestion ' + STATE.atc.enRoute.congestion + '% — expect minor delays', tone: 'warn' });
+    }
+  }
+  /* Macro deals */
+  items.push({ icon: '✦', text: 'DXB → BKK · 14% below seasonal average', tone: 'good' });
+  items.push({ icon: '✦', text: 'LHR → JFK · business fares unusually low this week', tone: 'good' });
+  items.push({ icon: '✦', text: 'Best Europe fares detected for September', tone: 'good' });
+  items.push({ icon: '◉', text: 'Tuesday/Wednesday departures avg 6-8% cheaper for long-haul', tone: 'info' });
+  items.push({ icon: '🛡', text: 'PULSE monitoring 59 live feeds · 0 stale · ' + (STATE && STATE.observability ? STATE.observability.totalTicks : 0) + ' ticks', tone: 'info' });
+  items.push({ icon: '⚡', text: 'ATLAS auto-deployed · live in <1s from any commit', tone: 'info' });
+  /* Source-registry-driven */
+  if (typeof SOURCE_REGISTRY !== 'undefined') {
+    const live = Object.values(SOURCE_REGISTRY).filter(s => s.status === 'live').length;
+    items.push({ icon: '📡', text: live + ' data feeds live · global aviation intelligence active', tone: 'info' });
+  }
+  return items;
+}
+
+let _phase20_ribbonTimer = null;
+function buildIntelRibbon() {
+  return safeCall(function () {
+    if (document.getElementById('atlasIntelRibbon')) return refreshIntelRibbon();
+    const ribbon = document.createElement('div');
+    ribbon.id = 'atlasIntelRibbon';
+    ribbon.className = 'intel-ribbon';
+    ribbon.innerHTML = '<div class="ir-glow"></div><div class="ir-track" id="irTrack"></div><div class="ir-edge"></div>';
+    /* Insert just below the hero */
+    const hero = document.querySelector('section.hero');
+    if (hero && hero.parentNode) hero.parentNode.insertBefore(ribbon, hero.nextSibling);
+    else document.body.appendChild(ribbon);
+    refreshIntelRibbon();
+    if (!_phase20_ribbonTimer) _phase20_ribbonTimer = setInterval(refreshIntelRibbon, 7000);
+  }, null, '20B.buildIntelRibbon');
+}
+function refreshIntelRibbon() {
+  const track = document.getElementById('irTrack');
+  if (!track) return;
+  const items = generateIntelItems();
+  /* Duplicate for seamless infinite scroll */
+  const html = items.concat(items).map(it =>
+    '<span class="ir-item ir-' + it.tone + '"><span class="ir-icon">' + it.icon + '</span>' + it.text + '</span>'
+  ).join('');
+  track.innerHTML = html;
+}
+
+/* -------- 20C. FEATURE SHOWCASE -------- */
+const FEATURE_CARDS = [
+  { glyph: '◉', title: 'Fare Prediction Engine', sub: 'Know when to buy.',
+    body: 'BUY NOW · WAIT · MONITOR with confidence %. Reads days-to-departure × deviation × fuel × volatility × demand.',
+    accent: '#30d158' },
+  { glyph: '◈', title: 'Route Optimizer', sub: 'Not all layovers are equal.',
+    body: 'Hub quality bonus, terminal change risk, layover comfort, deterministic seeded selection per (origin, destination, hub).',
+    accent: '#0a84ff' },
+  { glyph: '✈', title: 'Aircraft Intelligence', sub: 'Choose better aircraft, not just flights.',
+    body: '5 family geometries · published-dimension blueprints · best/avoid seats heuristic · cabin pressure quality.',
+    accent: '#bf5af2' },
+  { glyph: '◎', title: 'Lounge & Airport Intelligence', sub: 'Know the airport before you arrive.',
+    body: 'Terminal map · transit time · lounge access · seasonality charts · journey flow · congestion.',
+    accent: '#ff9f0a' },
+  { glyph: '🛡', title: 'AI Copilot · 7 Agents', sub: 'Travel with predictive intelligence.',
+    body: 'COMMAND · MERIDIAN · FORGE · ORACLE · AURA · AEGIS · SENTINEL · PULSE — live on 59 data feeds.',
+    accent: '#ffd60a' }
+];
+
+function buildFeatureShowcase() {
+  return safeCall(function () {
+    if (document.getElementById('atlasFeatureShowcase')) return;
+    const showcase = document.createElement('section');
+    showcase.id = 'atlasFeatureShowcase';
+    showcase.className = 'fs-section';
+    showcase.innerHTML =
+      '<div class="fs-head">' +
+        '<div class="fs-eyebrow">PLATFORM</div>' +
+        '<h2 class="fs-title">Built for travelers who think ahead.</h2>' +
+        '<div class="fs-sub">Five pillars of aviation intelligence — every recommendation explainable, every data point traceable.</div>' +
+      '</div>' +
+      '<div class="fs-grid">' +
+        FEATURE_CARDS.map(c =>
+          '<div class="fs-card" style="--accent:' + c.accent + '">' +
+            '<div class="fs-glyph">' + c.glyph + '</div>' +
+            '<div class="fs-card-title">' + c.title + '</div>' +
+            '<div class="fs-card-sub">' + c.sub + '</div>' +
+            '<div class="fs-card-body">' + c.body + '</div>' +
+          '</div>'
+        ).join('') +
+      '</div>';
+    /* Insert before #deals (or before footer if none) */
+    const deals = document.getElementById('deals');
+    if (deals && deals.parentNode) deals.parentNode.insertBefore(showcase, deals);
+    else document.body.appendChild(showcase);
+  }, null, '20C.featureShowcase');
+}
+
+/* -------- 20D. TRUST SECTION -------- */
+function buildTrustSection() {
+  return safeCall(function () {
+    if (document.getElementById('atlasTrust')) return;
+    const sources = [
+      { name: 'Climate · IATA + lat/lng band',  status: 'live' },
+      { name: 'NOTAM · ATC severity',           status: 'live' },
+      { name: 'Brent crude · ICE feed',         status: 'live' },
+      { name: 'Capacity · OAG index',           status: 'live' },
+      { name: 'Load factor · IATA',             status: 'live' },
+      { name: '14 booking aggregators',         status: 'live' },
+      { name: 'World atlas · TopoJSON',         status: 'live' },
+      { name: '70+ carriers · fleet data',      status: 'live' },
+      { name: '220+ airports · geometry',       status: 'live' },
+      { name: 'Aircraft families · 5 profiles', status: 'live' },
+      { name: 'Real-time delay observability',  status: 'live' },
+      { name: 'PULSE feed monitor · 59 feeds',  status: 'live' }
+    ];
+    const sec = document.createElement('section');
+    sec.id = 'atlasTrust';
+    sec.className = 'tr-section';
+    sec.innerHTML =
+      '<div class="tr-eyebrow">DATA TRANSPARENCY</div>' +
+      '<h2 class="tr-title">Powered by global aviation intelligence.</h2>' +
+      '<div class="tr-sub">Every signal that drives a recommendation, surfaced. No black boxes.</div>' +
+      '<div class="tr-grid">' +
+        sources.map(s =>
+          '<div class="tr-cell">' +
+            '<span class="tr-dot tr-' + s.status + '"></span>' +
+            '<span class="tr-name">' + s.name + '</span>' +
+            '<span class="tr-stat">' + s.status.toUpperCase() + '</span>' +
+          '</div>'
+        ).join('') +
+      '</div>' +
+      '<div class="tr-cta">' +
+        '<button class="tr-btn" onclick="toggleAgent && toggleAgent()">View live intelligence panel →</button>' +
+      '</div>';
+    /* Insert before footer */
+    const footer = document.querySelector('footer');
+    if (footer && footer.parentNode) footer.parentNode.insertBefore(sec, footer);
+    else document.body.appendChild(sec);
+  }, null, '20D.trustSection');
+}
+
+/* -------- 20E. WELCOME-BACK PERSONALIZATION -------- */
+function applyWelcomeBack() {
+  return safeCall(function () {
+    const visits = getVisitCount();
+    if (visits <= 1) return;   /* first-time user — leave hero default */
+    const heroH1 = document.querySelector('.hero h1');
+    const heroSub = document.querySelector('.hero .sub, .hero .subhead, .hero p');
+    const lastRoute = localStorage.getItem('atlas-last-route');
+    if (heroH1) {
+      heroH1.innerHTML = '<span class="hero-greeting">Welcome back.</span>';
+    }
+    if (heroSub && lastRoute) {
+      heroSub.innerHTML = 'Tracked route · <strong>' + lastRoute + '</strong> · checking for fare moves…';
+    }
+  }, null, '20E.welcomeBack');
+}
+/* Persist last searched route */
+const _phase20_origPerformRouteSearch = (typeof performRouteSearch === 'function') ? performRouteSearch : null;
+if (_phase20_origPerformRouteSearch) {
+  performRouteSearch = function () {
+    _phase20_origPerformRouteSearch.apply(this, arguments);
+    safeCall(function () {
+      const o = state.origin && state.origin.code;
+      const d = state.destination && state.destination.code;
+      if (o && d && d !== 'ANY') localStorage.setItem('atlas-last-route', o + ' → ' + d);
+    }, null, '20E.persistRoute');
+  };
+}
+
+/* -------- BOOT -------- */
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    const visits = recordVisit();
+    buildIntelRibbon();
+    buildFeatureShowcase();
+    buildTrustSection();
+    if (visits > 1) applyWelcomeBack();
+    if (!isOnboarded()) setTimeout(buildOnboardingModal, 1200);
+  }, 1500);
+});
+
+/* -------- CSS -------- */
+(function injectPhase20Css() {
+  if (document.getElementById('phase20-css')) return;
+  const css = `
+    /* ===== Onboarding ===== */
+    .ob-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(5,7,12,0.78);
+      backdrop-filter: blur(18px) saturate(150%);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.25s cubic-bezier(0.16,1,0.3,1);
+    }
+    .ob-overlay.open { opacity: 1; }
+    .ob-overlay.closing { opacity: 0; pointer-events: none; }
+    .ob-card {
+      width: min(540px, 92vw);
+      background: linear-gradient(180deg, rgba(20,21,26,0.95), rgba(10,11,15,0.96));
+      border: 0.5px solid rgba(255,255,255,0.10);
+      border-radius: 18px;
+      padding: 36px 36px 24px;
+      position: relative;
+      transform: translateY(8px) scale(0.98);
+      opacity: 0;
+      transition: all 0.32s cubic-bezier(0.16,1,0.3,1);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+    }
+    .ob-overlay.open .ob-card { transform: translateY(0) scale(1); opacity: 1; }
+    .ob-skip {
+      position: absolute; top: 14px; right: 16px;
+      background: transparent; border: none;
+      font: 600 11px/1 'Inter', sans-serif; letter-spacing: 0.04em;
+      color: rgba(255,255,255,0.45); cursor: pointer;
+      padding: 6px 10px; border-radius: 5px;
+    }
+    .ob-skip:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    .ob-stage { padding: 20px 0 24px; }
+    .ob-glyph {
+      width: 64px; height: 64px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 800;
+      margin: 0 auto 22px;
+      border: 0.5px solid;
+    }
+    .ob-title {
+      font: 800 24px/1.2 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.025em;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .ob-body {
+      font: 500 14px/1.6 -apple-system, 'Inter', sans-serif;
+      color: rgba(255,255,255,0.65);
+      text-align: center;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+    .ob-foot {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 18px;
+      border-top: 0.5px solid rgba(255,255,255,0.06);
+    }
+    .ob-dots { display: flex; gap: 6px; }
+    .ob-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .ob-dot.on { width: 22px; border-radius: 4px; background: #0a84ff; }
+    .ob-actions { display: flex; gap: 8px; }
+    .ob-btn {
+      font: 700 11px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.10em;
+      padding: 10px 16px; border-radius: 8px;
+      background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.78);
+      border: 0.5px solid rgba(255,255,255,0.10); cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ob-btn:hover { background: rgba(255,255,255,0.10); color: #fff; }
+    .ob-btn.primary { background: #0a84ff; color: #fff; border-color: #0a84ff; }
+    .ob-btn.primary:hover { background: #0070dd; }
+
+    /* ===== Live Intelligence Ribbon ===== */
+    .intel-ribbon {
+      position: relative; overflow: hidden;
+      margin: 0 0 24px;
+      padding: 0;
+      height: 38px;
+      background: linear-gradient(90deg, rgba(10,132,255,0.08), rgba(48,209,88,0.05) 50%, rgba(10,132,255,0.08));
+      border-top: 0.5px solid rgba(255,255,255,0.06);
+      border-bottom: 0.5px solid rgba(255,255,255,0.06);
+    }
+    .intel-ribbon .ir-glow {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at center, rgba(10,132,255,0.20), transparent 70%);
+      pointer-events: none;
+    }
+    .ir-track {
+      display: flex; align-items: center; height: 100%;
+      animation: irScroll 60s linear infinite;
+      white-space: nowrap;
+      will-change: transform;
+    }
+    @keyframes irScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .ir-item {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 0 22px;
+      font: 500 12px/1 -apple-system, 'Inter', sans-serif;
+      letter-spacing: 0.005em;
+      color: rgba(255,255,255,0.78);
+      border-right: 0.5px solid rgba(255,255,255,0.06);
+    }
+    .ir-icon { font-size: 14px; opacity: 0.92; }
+    .ir-good { color: #30d158; }
+    .ir-warn { color: #ff9f0a; }
+    .ir-info { color: rgba(255,255,255,0.78); }
+    .ir-edge {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+      background: linear-gradient(90deg, transparent, rgba(5,7,12,0.85));
+      pointer-events: none;
+    }
+
+    /* ===== Feature Showcase ===== */
+    .fs-section {
+      max-width: 1200px;
+      margin: 60px auto 40px;
+      padding: 0 24px;
+    }
+    .fs-head { text-align: center; margin-bottom: 36px; }
+    .fs-eyebrow {
+      font: 700 10px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.20em;
+      color: #0a84ff;
+      margin-bottom: 14px;
+    }
+    .fs-title {
+      font: 800 36px/1.1 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.025em;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+    .fs-sub {
+      font: 500 15px/1.5 -apple-system, 'Inter', sans-serif;
+      color: rgba(255,255,255,0.55);
+      max-width: 640px; margin: 0 auto;
+    }
+    .fs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 28px;
+    }
+    .fs-card {
+      padding: 22px 22px 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      border-top: 2px solid var(--accent, #0a84ff);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .fs-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 14px 36px rgba(0,0,0,0.40);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .fs-glyph {
+      font: 700 22px/1 'Inter', sans-serif;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+    .fs-card-title {
+      font: 700 15px/1.3 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.015em;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .fs-card-sub {
+      font: 600 11px/1.3 'JetBrains Mono', monospace;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    .fs-card-body {
+      font: 500 12.5px/1.55 -apple-system, 'Inter', sans-serif;
+      color: rgba(255,255,255,0.62);
+    }
+
+    /* ===== Trust Section ===== */
+    .tr-section {
+      max-width: 1200px;
+      margin: 56px auto 40px;
+      padding: 36px 28px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+      border: 0.5px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+    }
+    .tr-eyebrow {
+      font: 700 10px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.20em;
+      color: #30d158;
+      margin-bottom: 12px;
+    }
+    .tr-title {
+      font: 800 28px/1.2 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.02em;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .tr-sub {
+      font: 500 14px/1.5 -apple-system, 'Inter', sans-serif;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 26px;
+    }
+    .tr-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 8px;
+    }
+    .tr-cell {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 8px;
+      border: 0.5px solid rgba(255,255,255,0.06);
+    }
+    .tr-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #30d158; box-shadow: 0 0 6px #30d158;
+      flex: 0 0 7px;
+      animation: trPulse 2.4s ease-in-out infinite;
+    }
+    @keyframes trPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+    .tr-name {
+      font: 500 12px/1.3 -apple-system, 'Inter', sans-serif;
+      color: rgba(255,255,255,0.78);
+      flex: 1;
+    }
+    .tr-stat {
+      font: 700 9px/1 'JetBrains Mono', monospace;
+      letter-spacing: 0.10em;
+      color: #30d158;
+    }
+    .tr-cta { margin-top: 22px; text-align: center; }
+    .tr-btn {
+      font: 700 12px/1 'JetBrains Mono', monospace;
+      letter-spacing: 0.10em;
+      padding: 12px 20px; border-radius: 9px;
+      background: rgba(10,132,255,0.18); color: #fff;
+      border: 0.5px solid rgba(10,132,255,0.45); cursor: pointer;
+      transition: all 0.18s;
+    }
+    .tr-btn:hover { background: rgba(10,132,255,0.30); transform: translateY(-1px); }
+
+    /* ===== Welcome-back hero greeting ===== */
+    .hero-greeting {
+      background: linear-gradient(90deg, #fff 0%, #cfd5dd 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    @media (max-width: 760px) {
+      .ob-card { padding: 28px 24px 18px; }
+      .ob-title { font-size: 20px; }
+      .fs-title { font-size: 26px; }
+      .tr-title { font-size: 22px; }
+      .ir-item { padding: 0 14px; font-size: 11px; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase20-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
 function init() {
   bindUI();
   bindCurrencyPicker();
