@@ -4680,7 +4680,49 @@ body { min-height: 100vh; }
 .particles,
 #particles,
 .classification { display: none !important; }
-section.hero { background: transparent !important; }
+section.hero { background: transparent !important; position: relative; }
+
+/* === ATLAS IDLE GLOBE — calm, single aircraft, slow orbit === */
+.aig-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  opacity: 0.85;
+}
+.aig-svg {
+  width: min(900px, 110%);
+  height: auto;
+  max-height: 100%;
+}
+.aig-plane {
+  filter: drop-shadow(0 0 6px rgba(255,255,255,0.35));
+}
+.hero-content,
+.search-panel { position: relative; z-index: 2; }
+.hero-content {
+  text-align: center;
+  margin: 0 auto 18px;
+  padding: 28px 16px 8px;
+}
+.hero-content h1 {
+  font: 700 clamp(28px, 4vw, 42px)/1.1 -apple-system, BlinkMacSystemFont, 'Inter', sans-serif !important;
+  letter-spacing: -0.025em !important;
+  color: #fff !important;
+  margin: 0 0 10px;
+}
+.hero-content .lead {
+  font: 500 14px/1.5 -apple-system, 'Inter', sans-serif !important;
+  color: rgba(255,255,255,0.55) !important;
+  margin: 0;
+  max-width: 520px;
+  margin-left: auto; margin-right: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aig-plane animateMotion { display: none; }
+}
 </style>
 </head>
 <body>
@@ -4938,10 +4980,39 @@ section.hero { background: transparent !important; }
     <div class="hero-contrail c4"></div>
   </div>
 
+  <!-- Idle globe + single orbital aircraft (calm, slow, restrained) -->
+  <div id="atlasIdleGlobe" class="aig-wrap" aria-hidden="true">
+    <svg class="aig-svg" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="aigGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stop-color="rgba(10,132,255,0.10)"/>
+          <stop offset="60%" stop-color="rgba(10,132,255,0.03)"/>
+          <stop offset="100%" stop-color="rgba(10,132,255,0)"/>
+        </radialGradient>
+        <path id="aigOrbit" d="M 120 230 a 280 90 0 1 0 560 0 a 280 90 0 1 0 -560 0"/>
+      </defs>
+      <!-- Soft atmospheric glow -->
+      <ellipse cx="400" cy="230" rx="320" ry="200" fill="url(#aigGlow)"/>
+      <!-- Sphere outline (subtle dotted) -->
+      <circle cx="400" cy="230" r="170" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.7"/>
+      <ellipse cx="400" cy="230" rx="170" ry="85" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.7"/>
+      <ellipse cx="400" cy="230" rx="170" ry="42" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.6"/>
+      <!-- Equator-style orbit path (very faint) -->
+      <use href="#aigOrbit" stroke="rgba(10,132,255,0.10)" stroke-width="0.6" fill="none" stroke-dasharray="2 4"/>
+      <!-- Single airplane following the orbit slowly -->
+      <g class="aig-plane">
+        <path d="M 12 0 L 4 -1.2 L -3 -1.4 L -8 -8 L -10 -8 L -4 -1.4 L -11 -1.2 L -12 -3.5 L -14 -3.5 L -14 -0.7 L -16 0 L -14 0.7 L -14 3.5 L -12 3.5 L -11 1.2 L -4 1.4 L -10 8 L -8 8 L -3 1.4 L 4 1.2 Z"
+              fill="rgba(255,255,255,0.85)"/>
+        <animateMotion dur="44s" repeatCount="indefinite" rotate="auto">
+          <mpath href="#aigOrbit"/>
+        </animateMotion>
+      </g>
+    </svg>
+  </div>
+
   <div class="hero-content">
-    <span class="hero-tag">Live across 14 sources · Real-time pricing</span>
-    <h1>Find your next flight.<br/><span class="grad">Anywhere.</span></h1>
-    <p class="lead">Real-time fares from every major source. Smart connection algorithms that beat direct fares. Disruption-aware routing. One beautifully designed interface.</p>
+    <h1>Where would you like to go?</h1>
+    <p class="lead">Search smarter journeys.</p>
   </div>
 
   <div class="search-panel">
