@@ -18342,6 +18342,317 @@ window.atlasState = function (s) {
   return document.body.dataset.searchState;
 };
 
+/* =================================================================
+   ✦ PHASE 25 — INTELLIGENCE HUD overlays on the world map
+   Glass chips float over #globe section post-search. Calm, contextual,
+   never visible pre-search.
+   ================================================================= */
+
+function renderHudOverlays() {
+  return safeCall(function () {
+    /* Only mount in active route mode */
+    const mode = document.body.dataset.searchState;
+    if (mode !== 'active') {
+      const old = document.getElementById('atlasHud');
+      if (old) old.remove();
+      return;
+    }
+
+    const fromCode = state.origin && state.origin.code;
+    const toCode   = state.destination && state.destination.code;
+    if (!fromCode || !toCode || toCode === 'ANY') return;
+    const from = airportByCode(fromCode);
+    const to   = airportByCode(toCode);
+    if (!from || !to) return;
+
+    const directs = (STATE.flights && STATE.flights.directs) || [];
+    const top = directs[0];
+    const dist = haversine(from[3], from[4], to[3], to[4]);
+    const flightMin = Math.round(dist / 850 * 60);
+    const durLabel = Math.floor(flightMin/60) + 'h ' + pad2(flightMin%60) + 'm';
+
+    /* Live data sources */
+    const wx = STATE.weather || {};
+    const atc = STATE.atc || {};
+    const fc  = top ? fareConfidence(top, fromCode, toCode) : null;
+    const sps = top ? skyPulseScore(top) : null;
+
+    /* Map host */
+    const mapSection = document.getElementById('globe') || document.querySelector('section.world-map') || document.getElementById('worldSvg')?.closest('section');
+    if (!mapSection) return;
+    mapSection.style.position = 'relative';
+
+    let hud = document.getElementById('atlasHud');
+    if (!hud) {
+      hud = document.createElement('div');
+      hud.id = 'atlasHud';
+      hud.className = 'hud-layer';
+      mapSection.appendChild(hud);
+    }
+
+    /* Helpers */
+    function severityDot(sev) {
+      const c = sev === 'nominal' ? '#30d158' : sev === 'watch' ? '#ff9f0a' : sev === 'restricted' ? '#ff453a' : '#0a84ff';
+      return '<span class="hud-dot" style="background:' + c + '; box-shadow: 0 0 6px ' + c + '"></span>';
+    }
+    function wxIcon(kind) {
+      return { sunny: '☀', cloudy: '⛅', rain: '🌧', storm: '⛈' }[kind] || '◯';
+    }
+
+    /* TOP-LEFT — route headline */
+    const tl =
+      '<div class="hud-chip hud-tl">' +
+        '<div class="hud-row main">' +
+          '<span class="hud-code">' + fromCode + '</span>' +
+          '<span class="hud-arrow">→</span>' +
+          '<span class="hud-code">' + toCode + '</span>' +
+        '</div>' +
+        '<div class="hud-row meta">' +
+          '<span>' + durLabel + '</span>' +
+          '<span class="hud-sep">·</span>' +
+          '<span>' + Math.round(dist).toLocaleString() + ' km</span>' +
+          '<span class="hud-sep">·</span>' +
+          '<span>' + (directs.length || 0) + ' direct</span>' +
+        '</div>' +
+      '</div>';
+
+    /* TOP-RIGHT — operational status row */
+    const enRouteSev = atc.enRoute && atc.enRoute.severity || 'nominal';
+    const enRouteCong = atc.enRoute && atc.enRoute.congestion;
+    const tr =
+      '<div class="hud-chip hud-tr">' +
+        '<div class="hud-mini-row">' +
+          severityDot(enRouteSev) +
+          '<span class="hud-label">EN-ROUTE</span>' +
+          '<span class="hud-val">' + (enRouteCong != null ? enRouteCong + '%' : '—') + '</span>' +
+        '</div>' +
+        '<div class="hud-mini-row">' +
+          '<span class="hud-glyph">⚡</span>' +
+          '<span class="hud-label">DELAY RISK</span>' +
+          '<span class="hud-val">' + (atc.origin && atc.origin.delay != null ? atc.origin.delay + 'm avg' : '—') + '</span>' +
+        '</div>' +
+        '<div class="hud-mini-row">' +
+          '<span class="hud-glyph">◐</span>' +
+          '<span class="hud-label">CONFIDENCE</span>' +
+          '<span class="hud-val">' + (fc ? fc.confidence + '%' : '—') + '</span>' +
+        '</div>' +
+      '</div>';
+
+    /* MID — floating route status near corridor */
+    const wxAdverse = (wx.origin && (wx.origin.kind === 'rain' || wx.origin.kind === 'storm')) ||
+                      (wx.destination && (wx.destination.kind === 'rain' || wx.destination.kind === 'storm'));
+    const corridorTone = wxAdverse ? 'warn' : 'good';
+    const corridorText = wxAdverse ? 'Weather impact en route' : 'Stable corridor · low turbulence';
+    const md =
+      '<div class="hud-chip hud-mid hud-mid-' + corridorTone + '">' +
+        '<div class="hud-row">' +
+          severityDot(corridorTone === 'good' ? 'nominal' : 'watch') +
+          '<span class="hud-mid-text">' + corridorText + '</span>' +
+        '</div>' +
+      '</div>';
+
+    /* BOTTOM-LEFT — origin airport bubble */
+    const wo = wx.origin || {};
+    const ao = atc.origin || {};
+    const bl =
+      '<div class="hud-chip hud-bl">' +
+        '<div class="hud-row main">' +
+          '<span class="hud-code small">' + fromCode + '</span>' +
+          '<span class="hud-bl-meta">origin</span>' +
+        '</div>' +
+        '<div class="hud-mini-row">' +
+          '<span class="hud-glyph">' + wxIcon(wo.kind) + '</span>' +
+          '<span class="hud-val">' + (wo.tempC != null ? wo.tempC + '°C · ' + (wo.kind || '—') : '—') + '</span>' +
+        '</div>' +
+        '<div class="hud-mini-row">' +
+          severityDot(ao.severity || 'nominal') +
+          '<span class="hud-val">' + (ao.severity || 'nominal') + ' · ' + (ao.delay != null ? ao.delay + 'm delay' : 'on time') + '</span>' +
+        '</div>' +
+      '</div>';
+
+    /* BOTTOM-RIGHT — destination airport bubble */
+    const wd = wx.destination || {};
+    const ad = atc.destination || {};
+    const br =
+      '<div class="hud-chip hud-br">' +
+        '<div class="hud-row main">' +
+          '<span class="hud-code small">' + toCode + '</span>' +
+          '<span class="hud-bl-meta">arrival</span>' +
+        '</div>' +
+        '<div class="hud-mini-row">' +
+          '<span class="hud-glyph">' + wxIcon(wd.kind) + '</span>' +
+          '<span class="hud-val">' + (wd.tempC != null ? wd.tempC + '°C · ' + (wd.kind || '—') : '—') + '</span>' +
+        '</div>' +
+        '<div class="hud-mini-row">' +
+          severityDot(ad.severity || 'nominal') +
+          '<span class="hud-val">' + (ad.severity || 'nominal') + ' · ' + (ad.delay != null ? ad.delay + 'm delay' : 'on time') + '</span>' +
+        '</div>' +
+      '</div>';
+
+    /* CENTER-BOTTOM — top option verdict */
+    let cb = '';
+    if (sps && fc) {
+      cb =
+        '<div class="hud-chip hud-cb">' +
+          '<div class="hud-cb-row">' +
+            '<span class="hud-cb-tag">TOP OPTION</span>' +
+            '<span class="hud-cb-score" style="color:' + (sps.score >= 80 ? '#30d158' : sps.score >= 60 ? '#0a84ff' : sps.score >= 45 ? '#ff9f0a' : '#ff453a') + '">' + sps.score + '</span>' +
+            '<span class="hud-cb-band">' + sps.band.toUpperCase() + '</span>' +
+          '</div>' +
+          '<div class="hud-cb-row">' +
+            '<span class="hud-cb-verdict" style="color:' + fc.color + '">' + fc.verdict + '</span>' +
+            '<span class="hud-cb-conf">' + fc.confidence + '% confidence</span>' +
+          '</div>' +
+        '</div>';
+    }
+
+    hud.innerHTML = tl + tr + md + bl + br + cb;
+  }, null, '25.renderHud');
+}
+
+/* Hook into route search to refresh HUD */
+const _phase25_origPRS = (typeof performRouteSearch === 'function') ? performRouteSearch : null;
+if (_phase25_origPRS) {
+  performRouteSearch = function () {
+    _phase25_origPRS.apply(this, arguments);
+    setTimeout(renderHudOverlays, 200);
+    setTimeout(renderHudOverlays, 1500);   /* re-render after agents tick */
+  };
+}
+
+/* Re-render HUD every 5s in active mode so live data ticks update */
+setInterval(function () {
+  if (document.body.dataset.searchState === 'active') {
+    renderHudOverlays();
+  }
+}, 5000);
+
+/* CSS */
+(function injectPhase25Css() {
+  if (document.getElementById('phase25-css')) return;
+  const css = `
+    /* HUD layer — fills map section, pointer-events: none on container, individual chips remain interactive */
+    .hud-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 18;
+    }
+    body:not([data-search-state="active"]) .hud-layer { display: none !important; }
+
+    .hud-chip {
+      position: absolute;
+      pointer-events: auto;
+      padding: 10px 14px;
+      background: rgba(10, 11, 16, 0.62);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 0.5px solid rgba(255, 255, 255, 0.10);
+      border-radius: 10px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.40);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      animation: hudFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+    @keyframes hudFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .hud-tl  { top: 14px;  left: 14px;  animation-delay: 0.05s; }
+    .hud-tr  { top: 14px;  right: 14px; animation-delay: 0.10s; }
+    .hud-mid { top: 50%;   left: 50%;   transform: translate(-50%, -130px); animation-delay: 0.20s; }
+    .hud-bl  { bottom: 14px; left: 14px;  animation-delay: 0.15s; }
+    .hud-br  { bottom: 14px; right: 14px; animation-delay: 0.18s; }
+    .hud-cb  { bottom: 14px; left: 50%; transform: translateX(-50%); animation-delay: 0.25s; }
+
+    .hud-row { display: flex; align-items: center; gap: 8px; }
+    .hud-row.main { font: 800 17px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.04em; }
+    .hud-row.meta {
+      margin-top: 5px;
+      font: 600 10.5px/1 'JetBrains Mono', monospace;
+      letter-spacing: 0.04em;
+      color: rgba(255, 255, 255, 0.62);
+    }
+    .hud-mini-row {
+      display: flex; align-items: center; gap: 8px;
+      font: 600 10px/1 'JetBrains Mono', monospace;
+      color: rgba(255, 255, 255, 0.78);
+      padding: 3px 0;
+    }
+    .hud-mini-row + .hud-mini-row { border-top: 0.5px solid rgba(255, 255, 255, 0.04); padding-top: 6px; margin-top: 3px; }
+    .hud-label {
+      font-size: 8.5px;
+      letter-spacing: 0.16em;
+      color: rgba(255, 255, 255, 0.45);
+      flex: 1;
+    }
+    .hud-val { color: #fff; font-weight: 700; }
+    .hud-glyph { font-size: 12px; opacity: 0.85; }
+    .hud-sep { opacity: 0.30; }
+
+    .hud-code { font: 800 17px/1 'JetBrains Mono', monospace; color: #fff; letter-spacing: 0.04em; }
+    .hud-code.small { font-size: 14px; }
+    .hud-arrow { color: #0a84ff; font-weight: 800; opacity: 0.85; }
+    .hud-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+    /* Mid chip — inline route label */
+    .hud-mid {
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(10, 11, 16, 0.78);
+    }
+    .hud-mid-good { border-color: rgba(48, 209, 88, 0.36); }
+    .hud-mid-warn { border-color: rgba(255, 159, 10, 0.45); }
+    .hud-mid-text { font: 600 11px/1 -apple-system, 'Inter', sans-serif; letter-spacing: 0.005em; color: rgba(255,255,255,0.92); }
+
+    /* Bottom-left/right airport bubble */
+    .hud-bl, .hud-br { min-width: 175px; }
+    .hud-bl-meta {
+      margin-left: auto;
+      font: 700 8.5px/1 'JetBrains Mono', monospace;
+      letter-spacing: 0.16em;
+      color: rgba(255, 255, 255, 0.42);
+    }
+
+    /* Center-bottom verdict */
+    .hud-cb { padding: 10px 16px; }
+    .hud-cb-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 3px 0;
+      font: 700 11px/1 'JetBrains Mono', monospace;
+    }
+    .hud-cb-row + .hud-cb-row { border-top: 0.5px solid rgba(255,255,255,0.06); padding-top: 7px; margin-top: 3px; }
+    .hud-cb-tag {
+      font-size: 8.5px;
+      letter-spacing: 0.18em;
+      color: rgba(255, 255, 255, 0.48);
+    }
+    .hud-cb-score { font-size: 18px; font-weight: 800; }
+    .hud-cb-band {
+      font-size: 9px; letter-spacing: 0.14em;
+      padding: 3px 6px; border-radius: 4px;
+      background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85);
+    }
+    .hud-cb-verdict { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; }
+    .hud-cb-conf { font-size: 10px; color: rgba(255,255,255,0.58); }
+
+    @media (max-width: 760px) {
+      .hud-chip { padding: 7px 10px; font-size: 10px; }
+      .hud-row.main, .hud-code { font-size: 14px; }
+      .hud-mid { padding: 6px 10px; }
+      .hud-mid-text { font-size: 10px; }
+      .hud-bl, .hud-br { min-width: 130px; }
+      .hud-cb { display: none; }   /* mobile: drop verdict to save space */
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase25-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
+/* Console probe */
+window.renderHudOverlays = renderHudOverlays;
+
 function init() {
   bindUI();
   bindCurrencyPicker();
