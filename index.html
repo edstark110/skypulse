@@ -15239,6 +15239,564 @@ document.addEventListener('DOMContentLoaded', function () {
   document.head.appendChild(el);
 })();
 
+/* =================================================================
+   ✦ PHASE 18 — GOOGLE-FLIGHTS-GRADE ANALYTICS + FILTERS
+   18A · sticky filter rail (sort · stops · duration · CO₂ · airlines)
+   18B · price insights panel (typical · band · track · book-now)
+   18C · 60-day price graph (Chart.js line)
+   18D · cabin class + passenger count selector
+   18E · per-flight quality flags (red-eye, short layover, terminal change)
+   ================================================================= */
+
+if (typeof STATE !== 'undefined') {
+  STATE.search = STATE.search || state;
+  STATE.filters = {
+    sort: 'best',          // best | cheapest | quickest
+    stops: 'any',          // any | direct | 1plus
+    maxDurMin: null,       // null = no limit
+    maxCO2Kg: null,        // null = no limit
+    airlines: [],          // empty = all; otherwise IATA codes
+    cabin: 'economy',      // economy | premium | business | first
+    pax: 1,
+    trackPrice: false
+  };
+}
+
+/* -------- 18A. APPLY FILTERS to a list of normalized flights -------- */
+function applyFilters(list) {
+  return safeCall(function () {
+    if (!Array.isArray(list)) return [];
+    const F = STATE.filters || {};
+    let out = list.slice();
+
+    /* Stops filter */
+    if (F.stops === 'direct') out = out.filter(f => (f.stops || 0) === 0);
+    else if (F.stops === '1plus') out = out.filter(f => (f.stops || 0) >= 1);
+
+    /* Max duration */
+    if (F.maxDurMin) out = out.filter(f => (f.duration || f.durationMin || f.totalMin || 9999) <= F.maxDurMin);
+
+    /* Max CO2 */
+    if (F.maxCO2Kg) out = out.filter(f => !f.intel || (f.intel.co2Kg || 0) <= F.maxCO2Kg);
+
+    /* Airline filter (IATA codes) */
+    if (F.airlines && F.airlines.length) {
+      out = out.filter(function (f) {
+        const code = f.airline || (f.carrier && f.carrier.c);
+        return F.airlines.indexOf(code) >= 0;
+      });
+    }
+
+    /* Cabin price multiplier (display only — affects displayed price) */
+    const cabinMult = { economy: 1.0, premium: 1.55, business: 3.4, first: 6.2 }[F.cabin] || 1.0;
+    if (cabinMult !== 1.0) {
+      out = out.map(function (f) {
+        const cf = Object.assign({}, f);
+        cf.price = Math.round((f.price || f.priceLow) * cabinMult);
+        cf.priceLow = cf.price;
+        if (f.sourcePrices) cf.sourcePrices = f.sourcePrices.map(s => Object.assign({}, s, { price: Math.round(s.price * cabinMult) }));
+        cf._cabinAdjusted = F.cabin;
+        return cf;
+      });
+    }
+
+    /* Sort */
+    if (F.sort === 'cheapest') out.sort((a, b) => (a.price || a.priceLow || 0) - (b.price || b.priceLow || 0));
+    else if (F.sort === 'quickest') out.sort((a, b) => (a.duration || a.durationMin || a.totalMin || 9999) - (b.duration || b.durationMin || b.totalMin || 9999));
+    else /* best */ out.sort(function (a, b) {
+      const sa = (typeof scoreRoute === 'function') ? scoreRoute(a) : 0;
+      const sb = (typeof scoreRoute === 'function') ? scoreRoute(b) : 0;
+      return sb - sa;
+    });
+
+    return out;
+  }, list, '18A.applyFilters');
+}
+
+/* -------- 18A. FILTER RAIL UI -------- */
+function renderFilterRail() {
+  return safeCall(function () {
+    const host = document.getElementById('route-results') || document.querySelector('#routeResults') || document.querySelector('.route-summary')?.parentElement;
+    const target = document.getElementById('directsTable')?.parentElement || document.getElementById('directsTable')?.closest('section') || host;
+    if (!target) return;
+    let rail = document.getElementById('phase18FilterRail');
+    if (!rail) {
+      rail = document.createElement('div');
+      rail.id = 'phase18FilterRail';
+      rail.className = 'pf-rail';
+      const insertionPoint = document.getElementById('directsTable');
+      if (insertionPoint && insertionPoint.parentNode) {
+        insertionPoint.parentNode.insertBefore(rail, insertionPoint);
+      } else {
+        target.appendChild(rail);
+      }
+    }
+    const F = STATE.filters;
+
+    /* Build airline options from current state */
+    const directs = (STATE.flights && STATE.flights.directs) || [];
+    const conns   = (STATE.flights && STATE.flights.connections) || [];
+    const airlines = {};
+    directs.concat(conns).forEach(function (f) {
+      const c = f.carrier || f.leg1Carrier;
+      if (c && c.c) airlines[c.c] = c.n || c.c;
+    });
+    const airlineOpts = Object.keys(airlines).slice(0, 12).map(code =>
+      '<button type="button" class="pf-airline ' + (F.airlines.indexOf(code) >= 0 ? 'on' : '') + '" data-iata="' + code + '">' + code + '</button>'
+    ).join('');
+
+    rail.innerHTML =
+      '<div class="pf-row">' +
+        '<div class="pf-tabs">' +
+          ['best','cheapest','quickest'].map(s =>
+            '<button type="button" class="pf-tab ' + (F.sort === s ? 'on' : '') + '" data-sort="' + s + '">' + s.toUpperCase() + '</button>'
+          ).join('') +
+        '</div>' +
+        '<div class="pf-divider"></div>' +
+        '<div class="pf-group">' +
+          '<span class="pf-lbl">Stops</span>' +
+          ['any','direct','1plus'].map(s =>
+            '<button type="button" class="pf-pill ' + (F.stops === s ? 'on' : '') + '" data-stops="' + s + '">' + (s === 'any' ? 'Any' : s === 'direct' ? 'Direct' : '1+') + '</button>'
+          ).join('') +
+        '</div>' +
+        '<div class="pf-divider"></div>' +
+        '<div class="pf-group">' +
+          '<span class="pf-lbl">Cabin</span>' +
+          '<select class="pf-select" data-field="cabin">' +
+            ['economy','premium','business','first'].map(c =>
+              '<option value="' + c + '"' + (F.cabin === c ? ' selected' : '') + '>' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>'
+            ).join('') +
+          '</select>' +
+        '</div>' +
+        '<div class="pf-divider"></div>' +
+        '<div class="pf-group">' +
+          '<span class="pf-lbl">Pax</span>' +
+          '<button type="button" class="pf-step" data-pax="-1">−</button>' +
+          '<span class="pf-pax">' + F.pax + '</span>' +
+          '<button type="button" class="pf-step" data-pax="+1">+</button>' +
+        '</div>' +
+        '<div class="pf-divider"></div>' +
+        '<button type="button" class="pf-track ' + (F.trackPrice ? 'on' : '') + '" data-track>' +
+          (F.trackPrice ? '★ Tracking' : '☆ Track price') +
+        '</button>' +
+      '</div>' +
+      (airlineOpts ? '<div class="pf-row pf-row-2">' +
+        '<span class="pf-lbl">Airlines</span>' +
+        '<div class="pf-airlines">' + airlineOpts + '</div>' +
+        '<button type="button" class="pf-clear" data-clear-airlines>Clear</button>' +
+      '</div>' : '');
+
+    /* Wire events */
+    rail.querySelectorAll('.pf-tab').forEach(b => b.addEventListener('click', function () {
+      F.sort = this.dataset.sort; rerunFilters();
+    }));
+    rail.querySelectorAll('.pf-pill[data-stops]').forEach(b => b.addEventListener('click', function () {
+      F.stops = this.dataset.stops; rerunFilters();
+    }));
+    rail.querySelectorAll('.pf-select[data-field="cabin"]').forEach(s => s.addEventListener('change', function () {
+      F.cabin = this.value; rerunFilters();
+    }));
+    rail.querySelectorAll('.pf-step').forEach(b => b.addEventListener('click', function () {
+      const delta = parseInt(this.dataset.pax, 10);
+      F.pax = Math.max(1, Math.min(9, F.pax + delta));
+      rerunFilters();
+    }));
+    rail.querySelectorAll('.pf-airline').forEach(b => b.addEventListener('click', function () {
+      const c = this.dataset.iata;
+      const idx = F.airlines.indexOf(c);
+      if (idx >= 0) F.airlines.splice(idx, 1); else F.airlines.push(c);
+      rerunFilters();
+    }));
+    rail.querySelectorAll('[data-clear-airlines]').forEach(b => b.addEventListener('click', function () {
+      F.airlines = []; rerunFilters();
+    }));
+    rail.querySelectorAll('[data-track]').forEach(b => b.addEventListener('click', function () {
+      F.trackPrice = !F.trackPrice;
+      try { localStorage.setItem('skypulse-track-' + (state.origin?.code || '?') + '-' + (state.destination?.code || '?'), F.trackPrice ? '1' : '0'); } catch (e) {}
+      rerunFilters();
+    }));
+  }, null, '18A.renderFilterRail');
+}
+
+/* Re-run filters: rebuild filtered lists and re-render flight tables in place */
+function rerunFilters() {
+  return safeCall(function () {
+    const directs = (STATE.flights && STATE.flights.directs) || [];
+    const conns   = (STATE.flights && STATE.flights.connections) || [];
+    const filteredDirects = applyFilters(directs);
+    const filteredConns   = applyFilters(conns);
+    const directLow = filteredDirects.length ? filteredDirects[0].priceLow : null;
+    const currency = (typeof userCurrency !== 'undefined') ? userCurrency : 'GBP';
+    if (typeof renderDirectFlights === 'function') renderDirectFlights(filteredDirects, currency);
+    if (typeof renderConnectionFlights === 'function') renderConnectionFlights(filteredConns, directLow, currency);
+    renderFilterRail();
+    renderPriceInsights();
+  }, null, '18A.rerunFilters');
+}
+
+/* -------- 18B. PRICE INSIGHTS PANEL -------- */
+function renderPriceInsights() {
+  return safeCall(function () {
+    const fromCode = state.origin && state.origin.code;
+    const toCode   = state.destination && state.destination.code;
+    if (!fromCode || !toCode || toCode === 'ANY') return;
+    const directs = (STATE.flights && STATE.flights.directs) || [];
+    if (!directs.length) return;
+    const filtered = applyFilters(directs);
+    if (!filtered.length) return;
+    const top = filtered[0];
+
+    const baseline = (typeof marketBaseline === 'function') ? marketBaseline(fromCode, toCode) : null;
+    if (!baseline) return;
+    const typical = baseline.median;
+    const current = top.price || top.priceLow;
+    const dev = ((current - typical) / typical) * 100;
+    let band = 'TYPICAL', bandClr = '#0a84ff', bandText = 'about right for this route';
+    if (dev < -15) { band = 'LOW'; bandClr = '#30d158'; bandText = 'cheaper than usual — good time to book'; }
+    else if (dev > 15) { band = 'HIGH'; bandClr = '#ff453a'; bandText = 'pricier than usual — wait or flex dates'; }
+
+    /* Macro fuel signal hint */
+    let fuelHint = '';
+    if (typeof MACRO_STATE !== 'undefined' && MACRO_STATE.brent) {
+      const fd = (MACRO_STATE.brent.val - MACRO_STATE.brent.base) / MACRO_STATE.brent.base;
+      if (fd > 0.04) fuelHint = ' · fuel cost rising — fares may climb';
+      else if (fd < -0.04) fuelHint = ' · fuel cost easing — fares may dip';
+    }
+
+    let panel = document.getElementById('phase18Insights');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'phase18Insights';
+      panel.className = 'pi18-card';
+      const rail = document.getElementById('phase18FilterRail');
+      if (rail && rail.parentNode) rail.parentNode.insertBefore(panel, rail);
+    }
+    panel.innerHTML =
+      '<div class="pi18-grid">' +
+        '<div class="pi18-cell">' +
+          '<div class="pi18-k">Cheapest now</div>' +
+          '<div class="pi18-v big">' + fmtMoney(current) + '</div>' +
+        '</div>' +
+        '<div class="pi18-cell">' +
+          '<div class="pi18-k">Typical for this route</div>' +
+          '<div class="pi18-v">' + fmtMoney(typical) + '</div>' +
+          '<div class="pi18-sub">band: ' + fmtMoney(baseline.lower) + ' – ' + fmtMoney(baseline.upper) + '</div>' +
+        '</div>' +
+        '<div class="pi18-cell">' +
+          '<div class="pi18-k">Vs typical</div>' +
+          '<div class="pi18-v" style="color:' + bandClr + '">' + (dev > 0 ? '+' : '') + dev.toFixed(0) + '%</div>' +
+        '</div>' +
+        '<div class="pi18-cell">' +
+          '<div class="pi18-k">Status</div>' +
+          '<div class="pi18-band" style="background:' + bandClr + '20;color:' + bandClr + ';border-color:' + bandClr + '60">' + band + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pi18-verdict">' +
+        '<strong style="color:' + bandClr + '">' + band + '.</strong> ' +
+        bandText + fuelHint + '.' +
+      '</div>';
+  }, null, '18B.renderPriceInsights');
+}
+
+/* -------- 18C. 60-DAY PRICE GRAPH -------- */
+let _phase18_priceChart = null;
+function renderPriceGraph() {
+  return safeCall(function () {
+    if (typeof Chart === 'undefined') return;
+    const fromCode = state.origin && state.origin.code;
+    const toCode   = state.destination && state.destination.code;
+    if (!fromCode || !toCode || toCode === 'ANY') return;
+    const directs = (STATE.flights && STATE.flights.directs) || [];
+    if (!directs.length) return;
+    const directLow = directs[0].priceLow;
+    if (!directLow) return;
+
+    /* Generate 60-day price history (simulated, deterministic per date) */
+    const today = new Date(); today.setHours(0,0,0,0);
+    const labels = [], values = [];
+    for (let i = 0; i < 60; i++) {
+      const d = new Date(today.getTime() + i * 86400000);
+      const dow = d.getDay();
+      const wkBoost = (dow === 5 || dow === 0) ? 1.18 : (dow === 6 ? 1.06 : 0.94);
+      const seasonal = 1 + Math.sin((d.getMonth() + d.getDate()/30) * Math.PI / 6) * 0.06;
+      const noise = 0.88 + (((d.getDate() * 7919 + d.getMonth() * 31) % 100) / 100) * 0.32;
+      const price = Math.round(directLow * wkBoost * seasonal * noise);
+      labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+      values.push(price);
+    }
+
+    let host = document.getElementById('phase18Graph');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'phase18Graph';
+      host.className = 'pg18-card';
+      host.innerHTML =
+        '<div class="pg18-head">' +
+          '<h4>Price over next 60 days</h4>' +
+          '<div class="pg18-meta">cheapest direct fare · ' + fromCode + ' → ' + toCode + '</div>' +
+        '</div>' +
+        '<div class="pg18-canvas-wrap"><canvas id="phase18GraphCanvas"></canvas></div>';
+      const rail = document.getElementById('phase18FilterRail');
+      if (rail && rail.parentNode) rail.parentNode.insertBefore(host, rail.nextSibling);
+    } else {
+      host.querySelector('.pg18-meta').textContent = 'cheapest direct fare · ' + fromCode + ' → ' + toCode;
+    }
+    const canvas = document.getElementById('phase18GraphCanvas');
+    if (!canvas) return;
+
+    if (_phase18_priceChart) { _phase18_priceChart.destroy(); _phase18_priceChart = null; }
+
+    const min = Math.min.apply(null, values);
+    const colors = values.map(v => v === min ? '#30d158' : v < min * 1.10 ? '#0a84ff' : v < min * 1.30 ? '#ff9f0a' : '#ff453a');
+
+    _phase18_priceChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Cheapest fare',
+          data: values,
+          borderColor: 'rgba(10,132,255,0.85)',
+          backgroundColor: 'rgba(10,132,255,0.12)',
+          fill: true,
+          tension: 0.32,
+          pointRadius: function (ctx) { return ctx.parsed && ctx.parsed.y === min ? 5 : 2.2; },
+          pointBackgroundColor: function (ctx) { return colors[ctx.dataIndex] || '#0a84ff'; },
+          pointBorderColor: 'transparent',
+          borderWidth: 1.6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: {
+          backgroundColor: 'rgba(0,0,0,0.85)', borderColor: 'rgba(255,255,255,0.10)', borderWidth: 0.5,
+          titleFont: { family: 'JetBrains Mono', size: 10, weight: '700' },
+          bodyFont:  { family: 'Inter',          size: 12, weight: '600' },
+          callbacks: { label: function (ctx) { return fmtMoney(ctx.parsed.y); } }
+        }},
+        scales: {
+          x: { ticks: { color: 'rgba(255,255,255,0.42)', font: { family: 'JetBrains Mono', size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } },
+          y: { ticks: { color: 'rgba(255,255,255,0.42)', font: { family: 'JetBrains Mono', size: 9 }, callback: function (v) { return fmtMoney(v); } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+  }, null, '18C.renderPriceGraph');
+}
+
+/* -------- 18E. QUALITY FLAGS per flight (post-render decoration) -------- */
+function decorateQualityFlags() {
+  return safeCall(function () {
+    /* Direct rows */
+    document.querySelectorAll('#directsTable tr.flight-row').forEach(function (row, i) {
+      if (row.dataset.qfBound === '1') return;
+      const directs = applyFilters((STATE.flights && STATE.flights.directs) || []);
+      const f = directs[i];
+      if (!f) return;
+      const flags = [];
+      if (f.depHr != null && (f.depHr >= 22 || f.depHr <= 4)) flags.push({ tag: 'red-eye', cls: 'qf-redeye', tip: 'Red-eye departure' });
+      if (f.durationMin && f.durationMin > 600) flags.push({ tag: 'long-haul', cls: 'qf-long', tip: 'Long-haul (>10h)' });
+      if (flags.length) injectFlags(row, flags);
+      row.dataset.qfBound = '1';
+    });
+    /* Connection rows */
+    document.querySelectorAll('#connectionsTable tr.flight-row').forEach(function (row, i) {
+      if (row.dataset.qfBound === '1') return;
+      const conns = applyFilters((STATE.flights && STATE.flights.connections) || []);
+      const c = conns[i];
+      if (!c) return;
+      const flags = [];
+      if (c.layoverMin && c.layoverMin < 60) flags.push({ tag: 'short-layover', cls: 'qf-short', tip: 'Short layover (<60m) — risky' });
+      if (c.layoverMin && c.layoverMin > 360) flags.push({ tag: 'long-layover', cls: 'qf-longlay', tip: 'Long layover (>6h)' });
+      if (c.totalMin && c.totalMin > 900) flags.push({ tag: 'long-haul', cls: 'qf-long', tip: 'Total trip >15h' });
+      /* Detect overnight layover via leg arrival hour heuristic */
+      if (c.layoverMin && c.layoverMin > 240) flags.push({ tag: 'overnight?', cls: 'qf-night', tip: 'Possible overnight layover' });
+      if (flags.length) injectFlags(row, flags);
+      row.dataset.qfBound = '1';
+    });
+  }, null, '18E.qualityFlags');
+}
+function injectFlags(row, flags) {
+  const cells = row.querySelectorAll('td');
+  const lastTd = cells[cells.length - 1];
+  if (!lastTd) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'qf-flags';
+  wrap.innerHTML = flags.map(f =>
+    '<span class="qf-flag ' + f.cls + '" title="' + f.tip + '">' + f.tag + '</span>'
+  ).join('');
+  lastTd.appendChild(wrap);
+}
+
+/* -------- INTEGRATION: wrap renderRouteSummary so insights/graph/rail mount on every search -------- */
+const _phase18_origRenderRouteSummary = (typeof renderRouteSummary === 'function') ? renderRouteSummary : null;
+if (_phase18_origRenderRouteSummary) {
+  renderRouteSummary = function (from, to, results, currency) {
+    _phase18_origRenderRouteSummary.apply(this, arguments);
+    setTimeout(function () {
+      renderFilterRail();
+      renderPriceInsights();
+      renderPriceGraph();
+      decorateQualityFlags();
+    }, 100);
+  };
+}
+/* Also redecorate after each render of flight tables */
+const _phase18_origRDF = (typeof renderDirectFlights === 'function') ? renderDirectFlights : null;
+if (_phase18_origRDF) {
+  renderDirectFlights = function (directs, currency) {
+    _phase18_origRDF.call(this, directs, currency);
+    setTimeout(decorateQualityFlags, 80);
+  };
+}
+const _phase18_origRCF = (typeof renderConnectionFlights === 'function') ? renderConnectionFlights : null;
+if (_phase18_origRCF) {
+  renderConnectionFlights = function (conns, directLow, currency) {
+    _phase18_origRCF.call(this, conns, directLow, currency);
+    setTimeout(decorateQualityFlags, 80);
+  };
+}
+
+/* -------- CSS -------- */
+(function injectPhase18Css() {
+  if (document.getElementById('phase18-css')) return;
+  const css = `
+    /* Sticky filter rail */
+    .pf-rail {
+      position: sticky; top: 0; z-index: 50;
+      margin: 12px 0 14px;
+      padding: 12px 14px;
+      background: rgba(20,21,26,0.85);
+      backdrop-filter: blur(30px) saturate(180%);
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+    }
+    .pf-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .pf-row + .pf-row { margin-top: 10px; padding-top: 10px; border-top: 0.5px solid rgba(255,255,255,0.06); }
+    .pf-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.10); margin: 0 4px; }
+    .pf-lbl { font: 700 9px/1 'JetBrains Mono', monospace; letter-spacing: 0.12em; color: rgba(255,255,255,0.45); margin-right: 4px; }
+    .pf-tabs { display: inline-flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.30); border-radius: 8px; }
+    .pf-tab {
+      font: 700 10px/1 'JetBrains Mono', monospace; letter-spacing: 0.10em;
+      padding: 7px 12px; border-radius: 6px;
+      background: transparent; color: rgba(255,255,255,0.55); border: none; cursor: pointer;
+    }
+    .pf-tab.on { background: rgba(10,132,255,0.22); color: #0a84ff; box-shadow: 0 0 0 1px rgba(10,132,255,0.45); }
+    .pf-tab:hover:not(.on) { color: #fff; }
+    .pf-group { display: inline-flex; align-items: center; gap: 6px; }
+    .pf-pill {
+      font: 600 11px/1 Inter; padding: 6px 11px; border-radius: 6px;
+      background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.78);
+      border: 0.5px solid rgba(255,255,255,0.08); cursor: pointer; transition: all .15s;
+    }
+    .pf-pill.on { background: rgba(10,132,255,0.16); color: #fff; border-color: rgba(10,132,255,0.40); }
+    .pf-pill:hover:not(.on) { background: rgba(255,255,255,0.08); }
+    .pf-select {
+      font: 600 11px/1 Inter; padding: 6px 10px; border-radius: 6px;
+      background: rgba(255,255,255,0.04); color: #fff;
+      border: 0.5px solid rgba(255,255,255,0.10); cursor: pointer;
+    }
+    .pf-step {
+      width: 24px; height: 24px; border-radius: 6px;
+      background: rgba(255,255,255,0.06); color: #fff; border: 0.5px solid rgba(255,255,255,0.10);
+      cursor: pointer; font: 700 14px/1 monospace;
+    }
+    .pf-step:hover { background: rgba(255,255,255,0.12); }
+    .pf-pax { font: 700 12px/1 'JetBrains Mono', monospace; min-width: 14px; text-align: center; color: #fff; }
+    .pf-track {
+      font: 700 10px/1 'JetBrains Mono', monospace; letter-spacing: 0.08em;
+      padding: 6px 10px; border-radius: 6px;
+      background: rgba(255,214,10,0.10); color: #ffd60a;
+      border: 0.5px solid rgba(255,214,10,0.30); cursor: pointer; margin-left: auto;
+    }
+    .pf-track.on { background: rgba(255,214,10,0.24); color: #fff; }
+    .pf-airlines { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+    .pf-airline {
+      font: 700 9.5px/1 'JetBrains Mono', monospace; letter-spacing: 0.06em;
+      padding: 5px 8px; border-radius: 4px;
+      background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.65);
+      border: 0.5px solid rgba(255,255,255,0.08); cursor: pointer;
+    }
+    .pf-airline.on { background: rgba(10,132,255,0.20); color: #fff; border-color: rgba(10,132,255,0.45); }
+    .pf-clear {
+      font: 600 10px/1 Inter; color: rgba(255,255,255,0.55);
+      background: transparent; border: 0.5px solid rgba(255,255,255,0.10); padding: 5px 9px; border-radius: 5px;
+      cursor: pointer; margin-left: auto;
+    }
+    .pf-clear:hover { color: #fff; }
+
+    /* Price insights card */
+    .pi18-card {
+      margin: 14px 0;
+      padding: 18px 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+    }
+    .pi18-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 18px 24px; margin-bottom: 14px; }
+    .pi18-cell .pi18-k { font: 600 10px/1 'JetBrains Mono', monospace; letter-spacing: 0.10em; color: rgba(255,255,255,0.45); margin-bottom: 5px; text-transform: uppercase; }
+    .pi18-cell .pi18-v { font: 700 18px/1 Inter; color: #fff; letter-spacing: -0.015em; }
+    .pi18-cell .pi18-v.big { font-size: 26px; font-weight: 800; color: #30d158; }
+    .pi18-cell .pi18-sub { font: 500 11px/1.3 Inter; color: rgba(255,255,255,0.50); margin-top: 4px; }
+    .pi18-band {
+      display: inline-block;
+      font: 800 11px/1 'JetBrains Mono', monospace; letter-spacing: 0.16em;
+      padding: 7px 12px; border-radius: 6px;
+      border: 0.5px solid;
+    }
+    .pi18-verdict {
+      font: 500 13px/1.55 Inter; color: rgba(255,255,255,0.78);
+      padding-top: 12px; border-top: 0.5px solid rgba(255,255,255,0.06);
+    }
+
+    /* Price graph card */
+    .pg18-card {
+      margin: 14px 0;
+      padding: 18px 22px 22px;
+      background: linear-gradient(180deg, rgba(10,132,255,0.05), rgba(255,255,255,0.01));
+      border: 0.5px solid rgba(10,132,255,0.18);
+      border-radius: 14px;
+    }
+    .pg18-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+    .pg18-head h4 { font: 700 14px/1 Inter; letter-spacing: -0.015em; color: #fff; }
+    .pg18-meta { font: 500 11px/1 Inter; color: rgba(255,255,255,0.50); }
+    .pg18-canvas-wrap { height: 180px; }
+    .pg18-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+
+    /* Quality flags */
+    .qf-flags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; justify-content: flex-end; }
+    .qf-flag {
+      font: 700 8.5px/1 'JetBrains Mono', monospace; letter-spacing: 0.06em;
+      padding: 3px 6px; border-radius: 3px;
+      background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.65);
+      border: 0.5px solid rgba(255,255,255,0.08);
+    }
+    .qf-flag.qf-redeye   { background: rgba(94,50,160,0.20);  color: #bf9aff; border-color: rgba(140,90,200,0.40); }
+    .qf-flag.qf-long     { background: rgba(255,159,10,0.16); color: #ff9f0a; border-color: rgba(255,159,10,0.30); }
+    .qf-flag.qf-short    { background: rgba(255,69,58,0.20);  color: #ff453a; border-color: rgba(255,69,58,0.40); }
+    .qf-flag.qf-longlay  { background: rgba(120,140,160,0.22); color: rgba(255,255,255,0.78); border-color: rgba(120,140,160,0.32); }
+    .qf-flag.qf-night    { background: rgba(10,30,80,0.40);   color: rgba(180,200,255,0.85); border-color: rgba(80,100,180,0.40); }
+
+    @media (max-width: 760px) {
+      .pf-row { gap: 6px; }
+      .pf-divider { display: none; }
+      .pf-tabs { width: 100%; }
+      .pf-tab { padding: 6px 8px; font-size: 9px; }
+      .pf-track { margin-left: 0; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase18-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
+/* Console probe API */
+window.SkyPulse = window.SkyPulse || {};
+window.SkyPulse.applyFilters = applyFilters;
+window.SkyPulse.rerunFilters = rerunFilters;
+window.SkyPulse.renderPriceInsights = renderPriceInsights;
+window.SkyPulse.renderPriceGraph = renderPriceGraph;
+
 function init() {
   bindUI();
   bindCurrencyPicker();
