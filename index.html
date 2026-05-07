@@ -4647,6 +4647,22 @@
     .price-intel { grid-template-columns: 1fr 1fr; }
     .cal-grid { grid-template-columns: repeat(10, 1fr); }
   }
+/* === USER REQUEST: hide all components below the search bar === */
+.stats-bar,
+.macro-strip,
+#globe,
+#deals,
+#smart-routes,
+#geo,
+#trends,
+#alerts,
+#sources,
+#destinations,
+footer { display: none !important; }
+/* Unnamed "Live price drops" section.block has no id */
+body > section.block:not([id]) { display: none !important; }
+/* Pull search section to top; remove deep page bottom whitespace */
+body { min-height: 100vh; }
 </style>
 </head>
 <body>
