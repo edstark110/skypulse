@@ -18135,6 +18135,213 @@ window.atlasGiant = function () {
   location.reload();
 };
 
+/* =================================================================
+   ✦ PHASE 24 — TRUE PRE-SEARCH MINIMAL
+   No data dumps until user sets intent. Onboarding-first homepage.
+   ================================================================= */
+
+function setSearchState(s) {
+  document.body.dataset.searchState = s;
+}
+
+/* -------- 24D. Drive state attribute from real route selection -------- */
+function evaluateSearchState() {
+  return safeCall(function () {
+    const d = state.destination && state.destination.code;
+    setSearchState((d && d !== 'ANY') ? 'active' : 'empty');
+  }, null, '24D.evalState');
+}
+const _phase24_origPRS = (typeof performRouteSearch === 'function') ? performRouteSearch : null;
+if (_phase24_origPRS) {
+  performRouteSearch = function () {
+    _phase24_origPRS.apply(this, arguments);
+    setTimeout(evaluateSearchState, 80);
+  };
+}
+
+/* -------- 24C. Inline pre-search onboarding strip (replaces all clutter) -------- */
+const PRESEARCH_STEPS = [
+  { n: '01', title: 'Search any route',         body: 'Type airport codes (LHR, DOH) or city names. Pick dates, cabin, passengers.' },
+  { n: '02', title: 'ATLAS analyzes the journey', body: 'Fare confidence engine, Route DNA, climate weather, ATC severity, aircraft quality.' },
+  { n: '03', title: 'See operational risk',      body: 'Live ATC delays, layover quality, hub reliability, sleep + stress impact.' },
+  { n: '04', title: 'Decide with confidence',    body: 'Every recommendation explainable. BUY NOW · WAIT · MONITOR with reasons.' }
+];
+
+function buildPresearchOnboarding() {
+  return safeCall(function () {
+    if (document.getElementById('atlasPresearch')) return;
+    const sec = document.createElement('section');
+    sec.id = 'atlasPresearch';
+    sec.className = 'ps-section';
+    sec.innerHTML =
+      '<div class="ps-head">' +
+        '<div class="ps-eyebrow">HOW ATLAS WORKS</div>' +
+        '<h2 class="ps-title">Pick a route. The system activates.</h2>' +
+        '<p class="ps-sub">Before you search, ATLAS stays calm. After you search, every panel becomes contextual to <em>your</em> journey.</p>' +
+      '</div>' +
+      '<div class="ps-grid">' +
+        PRESEARCH_STEPS.map(s =>
+          '<div class="ps-step">' +
+            '<div class="ps-num">' + s.n + '</div>' +
+            '<div class="ps-step-title">' + s.title + '</div>' +
+            '<div class="ps-step-body">' + s.body + '</div>' +
+          '</div>'
+        ).join('') +
+      '</div>' +
+      '<div class="ps-cta">' +
+        '<button class="ps-cta-btn" onclick="document.querySelector(\'#fromInput, [data-origin], input.search-input\')?.focus()">Start searching ↓</button>' +
+        '<button class="ps-cta-skip" onclick="window.openOnboarding && window.openOnboarding()">Replay full tour</button>' +
+      '</div>';
+    /* Mount right after the hero / search section */
+    const hero = document.querySelector('section.hero');
+    if (hero && hero.parentNode) hero.parentNode.insertBefore(sec, hero.nextSibling);
+    else document.body.appendChild(sec);
+  }, null, '24C.presearchStrip');
+}
+
+/* -------- 24A + 24B + 24E. CSS hide everything pre-search -------- */
+(function injectPhase24Css() {
+  if (document.getElementById('phase24-css')) return;
+  const css = `
+    /* Default: empty until proven otherwise */
+    body:not([data-search-state="active"]) {
+      /* hide all the data-dump sections that have no meaning before user intent */
+    }
+    body[data-search-state="empty"] .stats-bar,
+    body[data-search-state="empty"] .macro-strip,
+    body[data-search-state="empty"] #deals,
+    body[data-search-state="empty"] #geo,
+    body[data-search-state="empty"] #trends,
+    body[data-search-state="empty"] #alerts,
+    body[data-search-state="empty"] #sources,
+    body[data-search-state="empty"] #destinations,
+    body[data-search-state="empty"] #smart-routes,
+    body[data-search-state="empty"] #atlasIntelRibbon,
+    body[data-search-state="empty"] #atlasDiscovery,
+    body[data-search-state="empty"] #atlasFeatureShowcase,
+    body[data-search-state="empty"] #atlasTrust,
+    body[data-search-state="empty"] #atlasQuickPrompts {
+      display: none !important;
+    }
+
+    /* In active mode, hide the onboarding strip */
+    body[data-search-state="active"] #atlasPresearch { display: none !important; }
+
+    /* §24E — calm map pre-search (kill random plane spam, dim heat zones) */
+    body[data-search-state="empty"] #worldSvg #planesLayer use:nth-of-type(n+4) { display: none; }
+    body[data-search-state="empty"] #worldSvg .heat-pulse { opacity: 0.20 !important; }
+    body[data-search-state="empty"] #worldSvg #routesLayer { display: none !important; }
+    body[data-search-state="empty"] #worldSvg .map-grid line:nth-child(n+2) { display: none !important; }
+    body[data-search-state="empty"] #worldSvg .map-grid line:first-child { opacity: 0.18 !important; }
+
+    /* Compress the existing globe section pre-search */
+    body[data-search-state="empty"] #globe { padding-top: 12px; padding-bottom: 12px; }
+    body[data-search-state="empty"] #globe h2 { font-size: 15px; opacity: 0.75; }
+
+    /* §24C — onboarding strip styling */
+    .ps-section {
+      max-width: 1100px;
+      margin: 24px auto 36px;
+      padding: 0 24px;
+    }
+    .ps-head { text-align: center; margin-bottom: 24px; }
+    .ps-eyebrow {
+      font: 700 9.5px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.22em;
+      color: #0a84ff;
+      margin-bottom: 12px;
+    }
+    .ps-title {
+      font: 700 26px/1.15 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.022em;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .ps-sub {
+      font: 500 13.5px/1.55 -apple-system, 'Inter', sans-serif;
+      color: rgba(255,255,255,0.55);
+      max-width: 540px; margin: 0 auto;
+    }
+    .ps-sub em { font-style: italic; color: rgba(255,255,255,0.78); }
+
+    .ps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .ps-step {
+      padding: 18px 18px 16px;
+      background: rgba(255,255,255,0.03);
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+    .ps-step:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .ps-num {
+      font: 700 9px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.18em;
+      color: #0a84ff;
+      margin-bottom: 12px;
+    }
+    .ps-step-title {
+      font: 700 14px/1.3 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.012em;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .ps-step-body {
+      font: 500 12px/1.55 -apple-system, 'Inter', sans-serif;
+      color: rgba(255,255,255,0.62);
+    }
+    .ps-cta {
+      display: flex; gap: 10px; justify-content: center; align-items: center;
+    }
+    .ps-cta-btn {
+      font: 700 11px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.10em;
+      padding: 12px 18px; border-radius: 8px;
+      background: #0a84ff; color: #fff; border: 0.5px solid #0a84ff;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .ps-cta-btn:hover { background: #007ce0; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(10,132,255,0.30); }
+    .ps-cta-skip {
+      font: 600 11px/1 -apple-system, 'Inter', sans-serif;
+      padding: 11px 14px; border-radius: 8px;
+      background: transparent; color: rgba(255,255,255,0.55); border: 0.5px solid rgba(255,255,255,0.10);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .ps-cta-skip:hover { color: #fff; background: rgba(255,255,255,0.06); }
+
+    @media (max-width: 760px) {
+      .ps-section { padding: 0 16px; margin: 16px auto 24px; }
+      .ps-title { font-size: 22px; }
+      .ps-step { padding: 14px; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase24-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
+/* Boot — apply state on load */
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    evaluateSearchState();
+    buildPresearchOnboarding();
+  }, 250);
+});
+
+/* Console toggles */
+window.atlasState = function (s) {
+  if (s === 'empty' || s === 'active') setSearchState(s);
+  return document.body.dataset.searchState;
+};
+
 function init() {
   bindUI();
   bindCurrencyPicker();
