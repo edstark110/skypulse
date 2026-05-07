@@ -17845,6 +17845,296 @@ document.addEventListener('DOMContentLoaded', function () {
   document.head.appendChild(el);
 })();
 
+/* =================================================================
+   ✦ PHASE 23 — OMEGA COMPACT (kill the giant landing, build dashboard)
+   ================================================================= */
+
+const ATLAS_LAYOUT_KEY = 'atlas-layout';
+function setLayout(mode) {
+  document.body.dataset.layout = mode;
+  try { localStorage.setItem(ATLAS_LAYOUT_KEY, mode); } catch (e) {}
+}
+
+/* -------- 23A. Hide oversized blocks from earlier phases -------- */
+function applyCompactLayout() {
+  return safeCall(function () {
+    setLayout('compact');
+    /* Remove the cinematic landing if present (kept available via replayCinematic()) */
+    const cinematic = document.getElementById('atlasCinematic');
+    if (cinematic) cinematic.remove();
+    /* Remove giant Phase 20 sections */
+    ['atlasFeatureShowcase', 'atlasTrust'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
+  }, null, '23A.applyCompact');
+}
+
+/* -------- 23C. Quick-prompt chips below search -------- */
+const QUICK_PROMPTS = [
+  { label: 'Cheapest weekend',  q: 'cheapest weekend',  origin: null,  dest: 'ANY' },
+  { label: 'Low turbulence',     q: 'low turbulence',    origin: null,  dest: 'ANY' },
+  { label: 'Business optimized', q: 'business class',    origin: null,  dest: 'ANY' },
+  { label: 'Warm destinations',  q: 'warm destinations', origin: null,  dest: 'ANY' },
+  { label: 'Visa-free',          q: 'visa free',         origin: null,  dest: 'ANY' },
+  { label: 'Fastest route',      q: 'fastest route',     origin: null,  dest: 'ANY' }
+];
+
+function buildQuickPrompts() {
+  return safeCall(function () {
+    if (document.getElementById('atlasQuickPrompts')) return;
+    const search = document.querySelector('.search-panel, .search-card, .search-bar, #searchPanel') ||
+                   document.querySelector('section.hero');
+    if (!search) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'atlasQuickPrompts';
+    wrap.className = 'qp-row';
+    wrap.innerHTML = '<span class="qp-label">QUICK</span>' +
+      QUICK_PROMPTS.map(p =>
+        '<button class="qp-chip" data-prompt="' + p.q + '">' + p.label + '</button>'
+      ).join('');
+    /* Insert just after the search panel */
+    if (search.parentNode) search.parentNode.insertBefore(wrap, search.nextSibling);
+
+    wrap.addEventListener('click', function (e) {
+      const btn = e.target.closest('.qp-chip');
+      if (!btn) return;
+      /* For now, prompts fire an "Anywhere" search with cabin/sort filter applied */
+      const q = btn.dataset.prompt;
+      try {
+        if (q === 'business class' && STATE.filters) STATE.filters.cabin = 'business';
+        if (q === 'fastest route' && STATE.filters)  STATE.filters.sort = 'quickest';
+        if (q === 'cheapest weekend' && STATE.filters) STATE.filters.sort = 'cheapest';
+      } catch (e) {}
+      state.destination = { code: 'ANY', city: 'Anywhere', country: '' };
+      if (typeof performRouteSearch === 'function') performRouteSearch();
+      btn.classList.add('on');
+      setTimeout(function () { btn.classList.remove('on'); }, 1200);
+    });
+  }, null, '23C.quickPrompts');
+}
+
+/* -------- 23D. Compact discovery grid (replaces giant feature blocks) -------- */
+const DISCOVERY_TILES = [
+  { tag: 'CHEAPEST',    title: 'Bangkok',     sub: '£428',     trend: -14, color: '#30d158' },
+  { tag: 'BUSINESS',    title: 'Doha',        sub: '£2,773',   trend: -22, color: '#0a84ff' },
+  { tag: 'LOW TURB',    title: 'Pacific',     sub: 'corridor', trend: null, color: '#bf5af2' },
+  { tag: 'WEEKEND',     title: 'Lisbon',      sub: '£164',     trend: -8,  color: '#ff9f0a' },
+  { tag: 'PREMIUM',     title: 'Singapore',   sub: '£3,140',   trend: -18, color: '#0a84ff' },
+  { tag: 'ANOMALY',     title: 'Cairo',       sub: '£186',     trend: -34, color: '#ffd60a' },
+  { tag: 'WEATHER',     title: 'Reykjavik',   sub: 'aurora',    trend: null, color: '#64d2ff' },
+  { tag: 'AI PICK',     title: 'Tokyo',       sub: '£612',     trend: -6,  color: '#ff453a' }
+];
+
+function buildDiscoveryGrid() {
+  return safeCall(function () {
+    if (document.getElementById('atlasDiscovery')) return;
+    const sec = document.createElement('section');
+    sec.id = 'atlasDiscovery';
+    sec.className = 'dg-section';
+    sec.innerHTML =
+      '<div class="dg-head">' +
+        '<h3 class="dg-title">Discover</h3>' +
+        '<div class="dg-meta">live · curated by ATLAS</div>' +
+      '</div>' +
+      '<div class="dg-grid">' +
+        DISCOVERY_TILES.map(t =>
+          '<button class="dg-tile" style="--c:' + t.color + '" data-dest="' + t.title + '">' +
+            '<div class="dg-tag">' + t.tag + '</div>' +
+            '<div class="dg-name">' + t.title + '</div>' +
+            '<div class="dg-sub">' + t.sub +
+              (t.trend != null ? ' <span class="dg-trend ' + (t.trend < 0 ? 'down' : 'up') + '">' + (t.trend < 0 ? '▼' : '▲') + ' ' + Math.abs(t.trend) + '%</span>' : '') +
+            '</div>' +
+          '</button>'
+        ).join('') +
+      '</div>';
+
+    /* Insert after the existing search/hero, before deals */
+    const deals = document.getElementById('deals');
+    if (deals && deals.parentNode) deals.parentNode.insertBefore(sec, deals);
+    else document.body.appendChild(sec);
+  }, null, '23D.discoveryGrid');
+}
+
+/* -------- 23B + 23E. Compact CSS overrides -------- */
+(function injectPhase23Css() {
+  if (document.getElementById('phase23-css')) return;
+  const css = `
+    /* §23A — hide all giant blocks at the source level too */
+    body[data-layout="compact"] #atlasCinematic,
+    body[data-layout="compact"] #atlasFeatureShowcase,
+    body[data-layout="compact"] #atlasTrust { display: none !important; }
+
+    /* §23B — compress hero ruthlessly */
+    body[data-layout="compact"] section.hero {
+      padding: 32px 24px 20px !important;
+      min-height: auto !important;
+    }
+    body[data-layout="compact"] .hero h1,
+    body[data-layout="compact"] section.hero h1 {
+      font-size: clamp(28px, 4vw, 44px) !important;
+      line-height: 1.06 !important;
+      letter-spacing: -0.025em !important;
+      margin-bottom: 6px !important;
+    }
+    body[data-layout="compact"] .hero p,
+    body[data-layout="compact"] section.hero .sub,
+    body[data-layout="compact"] section.hero .subhead {
+      font-size: 13px !important;
+      line-height: 1.45 !important;
+      max-width: 560px;
+    }
+    body[data-layout="compact"] .hero-bg .hero-orbit,
+    body[data-layout="compact"] .hero-bg .hero-contrail {
+      opacity: 0.45 !important;
+    }
+    body[data-layout="compact"] .hero-bg .hero-scan { opacity: 0.20 !important; }
+    body[data-layout="compact"] .hero-bg { max-height: 380px; overflow: hidden; }
+
+    /* §23B — kill the intel ribbon's giant glow / shrink height */
+    body[data-layout="compact"] #atlasIntelRibbon { height: 30px; margin: 0 0 12px; }
+    body[data-layout="compact"] #atlasIntelRibbon .ir-item { font-size: 11px; padding: 0 16px; }
+
+    /* §23B — shrink price-insights, strategist, filter rail spacing */
+    body[data-layout="compact"] #phase18Insights { padding: 14px 16px !important; margin: 10px 0 !important; }
+    body[data-layout="compact"] #phase18Insights .pi18-grid { gap: 12px 18px !important; margin-bottom: 10px !important; }
+    body[data-layout="compact"] #phase18Insights .pi18-cell .pi18-v.big { font-size: 22px !important; }
+    body[data-layout="compact"] #phase18Insights .pi18-cell .pi18-v { font-size: 15px !important; }
+    body[data-layout="compact"] #phase19Strategist { padding: 14px 18px !important; margin: 10px 0 !important; }
+    body[data-layout="compact"] #phase18FilterRail { margin: 8px 0 10px !important; padding: 10px 12px !important; }
+    body[data-layout="compact"] #phase18Graph { padding: 14px 18px 16px !important; margin: 10px 0 !important; }
+    body[data-layout="compact"] #phase18Graph .pg18-canvas-wrap { height: 140px; }
+
+    /* §23E — tighten typography globally */
+    body[data-layout="compact"] section { padding-top: 28px; padding-bottom: 28px; }
+    body[data-layout="compact"] section h2 { font-size: clamp(20px, 2.4vw, 28px); margin-bottom: 12px; }
+    body[data-layout="compact"] section h3 { font-size: clamp(15px, 1.6vw, 18px); }
+
+    /* §23C — quick-prompt chips */
+    .qp-row {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      max-width: 1200px;
+      margin: 14px auto 0;
+      padding: 0 24px;
+    }
+    .qp-label {
+      font: 700 9px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.18em;
+      color: rgba(255,255,255,0.45);
+      margin-right: 4px;
+    }
+    .qp-chip {
+      font: 600 11px/1 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.005em;
+      padding: 7px 12px;
+      background: rgba(255,255,255,0.04);
+      border: 0.5px solid rgba(255,255,255,0.10);
+      border-radius: 999px;
+      color: rgba(255,255,255,0.78);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .qp-chip:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateY(-1px); }
+    .qp-chip.on    { background: rgba(10,132,255,0.20); color: #fff; border-color: rgba(10,132,255,0.45); }
+
+    /* §23D — discovery grid (compact tiles) */
+    .dg-section {
+      max-width: 1200px;
+      margin: 24px auto 28px;
+      padding: 0 24px;
+    }
+    .dg-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+    .dg-title { font: 700 16px/1 -apple-system, 'Inter', sans-serif; letter-spacing: -0.015em; color: #fff; }
+    .dg-meta  { font: 500 11px/1 'JetBrains Mono', monospace; letter-spacing: 0.06em; color: rgba(255,255,255,0.42); }
+    .dg-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .dg-tile {
+      padding: 12px 13px 11px;
+      text-align: left;
+      background: rgba(255,255,255,0.03);
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-left: 2px solid var(--c, #0a84ff);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .dg-tile:hover {
+      background: rgba(255,255,255,0.06);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.30);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .dg-tag {
+      font: 700 8.5px/1 'JetBrains Mono', monospace;
+      letter-spacing: 0.14em;
+      color: var(--c);
+      margin-bottom: 8px;
+    }
+    .dg-name {
+      font: 700 16px/1.1 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.015em;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .dg-sub {
+      font: 600 11px/1.3 'JetBrains Mono', monospace;
+      letter-spacing: 0.02em;
+      color: rgba(255,255,255,0.62);
+    }
+    .dg-trend.down { color: #30d158; margin-left: 4px; }
+    .dg-trend.up   { color: #ff453a; margin-left: 4px; }
+
+    /* Tighten existing oversized sections */
+    body[data-layout="compact"] section.deals,
+    body[data-layout="compact"] section#smart-routes,
+    body[data-layout="compact"] section#trends,
+    body[data-layout="compact"] section#geo {
+      padding-top: 24px !important;
+      padding-bottom: 24px !important;
+    }
+
+    /* Mobile: even tighter */
+    @media (max-width: 760px) {
+      body[data-layout="compact"] section.hero { padding: 22px 16px 14px !important; }
+      .qp-row { gap: 4px; padding: 0 16px; }
+      .qp-chip { padding: 5px 10px; font-size: 10px; }
+      .dg-section { padding: 0 16px; margin: 16px auto 22px; }
+      .dg-grid { gap: 6px; }
+      .dg-tile { padding: 10px 11px 9px; }
+      .dg-name { font-size: 14px; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase23-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
+/* Boot — apply compact layout immediately on load */
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    applyCompactLayout();
+    buildQuickPrompts();
+    buildDiscoveryGrid();
+    if (typeof agentLog === 'function') {
+      agentLog('action', 'Phase 23 · OMEGA COMPACT layout applied · giant blocks pruned · discovery grid armed');
+    }
+  }, 200);
+});
+
+/* Console toggles */
+window.atlasCompact = function () {
+  applyCompactLayout(); buildQuickPrompts(); buildDiscoveryGrid();
+};
+window.atlasGiant = function () {
+  setLayout('giant');
+  /* Reload to re-enable Phase 20+22 surfaces */
+  location.reload();
+};
+
 function init() {
   bindUI();
   bindCurrencyPicker();
