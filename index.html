@@ -12,6 +12,8 @@
      that prevented d3-geo from initializing and continents from rendering) -->
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<!-- Phase 26: Lenis smooth-scroll (iOS-grade momentum, ~6KB gzipped) -->
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
 <style>
   :root {
     --bg-0: #050714;
@@ -18652,6 +18654,212 @@ setInterval(function () {
 
 /* Console probe */
 window.renderHudOverlays = renderHudOverlays;
+
+/* =================================================================
+   ✦ PHASE 26 — SCROLL CHOREOGRAPHY + MOTION POLISH
+   26A · Lenis smooth scroll (iOS momentum)
+   26B · Magnetic hover + tactile click on key buttons
+   26C · Scroll-velocity nav shadow + global motion easing
+   26D · Subtle parallax on hero / onboarding
+   26E · Pinned scroll-progress bar
+   ================================================================= */
+
+let _phase26_lenis = null;
+let _phase26_lastY = 0;
+let _phase26_velocity = 0;
+
+function bootLenis() {
+  return safeCall(function () {
+    if (typeof Lenis === 'undefined') return false;     /* CDN didn't load — fall back to native scroll */
+    if (_phase26_lenis) return true;
+    _phase26_lenis = new Lenis({
+      duration: 1.15,
+      easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); },   /* iOS easeOutExpo */
+      lerp: 0.09,
+      smoothWheel: true,
+      wheelMultiplier: 0.9,
+      touchMultiplier: 1.2,
+      infinite: false
+    });
+    function raf(time) {
+      if (_phase26_lenis) _phase26_lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    /* Track velocity for nav-shadow + page progress var */
+    _phase26_lenis.on('scroll', function (e) {
+      const y = e.scroll;
+      _phase26_velocity = Math.abs(y - _phase26_lastY);
+      _phase26_lastY = y;
+      const max = Math.max(1, document.body.scrollHeight - window.innerHeight);
+      const p = Math.min(1, Math.max(0, y / max));
+      document.documentElement.style.setProperty('--scroll-progress', p.toFixed(4));
+      document.body.classList.toggle('is-scrolling', _phase26_velocity > 4);
+      document.body.classList.toggle('is-scrolling-fast', _phase26_velocity > 18);
+      const pf = document.getElementById('phase26ProgressFill');
+      if (pf) pf.style.transform = 'scaleX(' + p + ')';
+    });
+
+    /* Decay scrolling state on idle */
+    setInterval(function () {
+      _phase26_velocity = Math.max(0, _phase26_velocity - 1.6);
+      if (_phase26_velocity < 1.5) {
+        document.body.classList.remove('is-scrolling', 'is-scrolling-fast');
+      }
+    }, 80);
+    return true;
+  }, false, '26A.bootLenis');
+}
+
+/* -------- 26B. MAGNETIC BUTTONS -------- */
+function setupMagneticButtons() {
+  return safeCall(function () {
+    const sel = '.cn-cta, .ps-cta-btn, .qp-chip, .ip-btn-poke, .compare-btn, .pf-tab, .pf-track, .ob-btn, .tr-btn, .ob-btn.primary, button[data-magnetic]';
+    document.body.addEventListener('mousemove', function (e) {
+      const btn = e.target.closest && e.target.closest(sel);
+      if (!btn || btn._magneticBound === false) return;
+      if (!btn._magneticBound) {
+        btn._magneticBound = true;
+        btn.style.willChange = 'transform';
+        btn.addEventListener('mouseleave', function () {
+          btn.style.transform = '';
+        });
+      }
+      const r = btn.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const dx = (e.clientX - cx) / r.width;
+      const dy = (e.clientY - cy) / r.height;
+      /* Pull max 4px */
+      btn.style.transform = 'translate(' + (dx * 4).toFixed(1) + 'px, ' + (dy * 4).toFixed(1) + 'px)';
+    }, { passive: true });
+    /* Tactile click pulse */
+    document.body.addEventListener('mousedown', function (e) {
+      const btn = e.target.closest && e.target.closest(sel);
+      if (!btn) return;
+      btn.classList.add('mag-pressed');
+      setTimeout(function () { btn.classList.remove('mag-pressed'); }, 220);
+    });
+  }, null, '26B.magnetic');
+}
+
+/* -------- 26E. PROGRESS BAR -------- */
+function buildProgressBar() {
+  return safeCall(function () {
+    if (document.getElementById('phase26Progress')) return;
+    const bar = document.createElement('div');
+    bar.id = 'phase26Progress';
+    bar.className = 'p26-prog';
+    bar.innerHTML = '<div class="p26-prog-fill" id="phase26ProgressFill"></div>';
+    document.body.appendChild(bar);
+  }, null, '26E.progressBar');
+}
+
+/* -------- 26C + 26D. CSS for everything -------- */
+(function injectPhase26Css() {
+  if (document.getElementById('phase26-css')) return;
+  const css = `
+    /* §26A — html overflow handled by Lenis; smooth scroll fallback if CDN fails */
+    html.lenis, html.lenis body { height: auto; }
+    .lenis.lenis-smooth { scroll-behavior: auto; }
+    .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+    .lenis.lenis-stopped { overflow: hidden; }
+    .lenis.lenis-smooth iframe { pointer-events: none; }
+    /* Native fallback (Lenis not loaded) */
+    html:not(.lenis) { scroll-behavior: smooth; }
+
+    /* §26C — global motion easing dampening (less abrupt anywhere) */
+    .ip-card, .strat-item, .src-row, .compare-btn, .pf-tab, .pf-pill,
+    .qp-chip, .dg-tile, .ps-step, .hud-chip, .cn-cta, .tr-cell, .fs-card {
+      transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+                  opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+                  background 0.20s ease,
+                  border-color 0.20s ease,
+                  box-shadow 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    /* §26B — tactile press feedback */
+    .mag-pressed {
+      transform: scale(0.96) !important;
+      transition: transform 0.10s ease-out !important;
+    }
+
+    /* §26C — nav shadow when scrolling fast */
+    body.is-scrolling-fast nav,
+    body.is-scrolling-fast header.nav {
+      box-shadow: 0 6px 26px rgba(0, 0, 0, 0.40);
+      backdrop-filter: blur(40px) saturate(180%);
+      transition: box-shadow 0.18s ease, backdrop-filter 0.18s ease;
+    }
+
+    /* §26D — subtle parallax on hero + onboarding (uses --scroll-progress) */
+    section.hero .hero-bg {
+      will-change: transform;
+      transform: translateY(calc(var(--scroll-progress, 0) * 60px));
+      transition: transform 0.05s linear;
+    }
+    section.hero h1, section.hero .hero-content {
+      will-change: transform, opacity;
+      transform: translateY(calc(var(--scroll-progress, 0) * -20px));
+      opacity: calc(1 - var(--scroll-progress, 0) * 1.5);
+      transition: transform 0.05s linear, opacity 0.10s linear;
+    }
+    #atlasPresearch {
+      will-change: transform;
+      transform: translateY(calc(var(--scroll-progress, 0) * -10px));
+    }
+
+    /* §26E — pinned scroll progress bar */
+    .p26-prog {
+      position: fixed; left: 0; right: 0; top: 0;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.04);
+      z-index: 99;
+      pointer-events: none;
+    }
+    .p26-prog-fill {
+      height: 100%;
+      width: 100%;
+      transform: scaleX(0);
+      transform-origin: 0 50%;
+      background: linear-gradient(90deg, #0a84ff, #30d158);
+      box-shadow: 0 0 8px rgba(10, 132, 255, 0.45);
+      will-change: transform;
+    }
+
+    /* Reduce motion respect */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+      section.hero .hero-bg, section.hero h1, #atlasPresearch { transform: none !important; opacity: 1 !important; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase26-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
+/* Boot */
+document.addEventListener('DOMContentLoaded', function () {
+  /* Boot Lenis as soon as DOM ready, give CDN ~200ms grace if needed */
+  setTimeout(function () {
+    const ok = bootLenis();
+    if (!ok) setTimeout(bootLenis, 800);    /* retry once if CDN slow */
+    setupMagneticButtons();
+    buildProgressBar();
+  }, 100);
+});
+
+/* Expose for console */
+window.atlasMotion = {
+  lenis: function () { return _phase26_lenis; },
+  velocity: function () { return _phase26_velocity; },
+  scrollTo: function (target, opts) {
+    if (_phase26_lenis) _phase26_lenis.scrollTo(target, opts || { duration: 1.4 });
+    else if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth' });
+  }
+};
 
 function init() {
   bindUI();
