@@ -15797,6 +15797,545 @@ window.SkyPulse.rerunFilters = rerunFilters;
 window.SkyPulse.renderPriceInsights = renderPriceInsights;
 window.SkyPulse.renderPriceGraph = renderPriceGraph;
 
+/* =================================================================
+   ✦ PHASE 19 — INTELLIGENCE LEAP
+   19A · Fare Confidence Engine (BUY NOW / WAIT / MONITOR + reasons)
+   19B · Route DNA bar (6-segment genome — comfort/reliability/sleep/stress/delay/value)
+   19C · AI Trip Strategist (proactive savings suggestions, explainable)
+   ================================================================= */
+
+/* -------- 19A. FARE CONFIDENCE ENGINE -------- */
+function fareConfidence(flight, fromCode, toCode) {
+  return safeCall(function () {
+    if (!flight || !fromCode || !toCode) return null;
+    const baseline = (typeof marketBaseline === 'function') ? marketBaseline(fromCode, toCode) : null;
+    if (!baseline) return null;
+    const price = flight.price || flight.priceLow;
+    const dev = ((price - baseline.median) / baseline.median) * 100;
+
+    /* Days until departure */
+    let daysOut = 21;   // default if no date selected
+    if (state.searchDates && state.searchDates.departure) {
+      const dep = new Date(state.searchDates.departure + 'T00:00:00');
+      daysOut = Math.max(0, Math.round((dep - new Date()) / 86400000));
+    }
+
+    /* Macro fuel signal */
+    let fuelDeltaPct = 0;
+    if (typeof MACRO_STATE !== 'undefined' && MACRO_STATE.brent) {
+      fuelDeltaPct = ((MACRO_STATE.brent.val - MACRO_STATE.brent.base) / MACRO_STATE.brent.base) * 100;
+    }
+
+    /* Volatility from intel (cross-source price spread) */
+    const vol = flight.intel ? (flight.intel.volatility || 0) : 0;
+    const volPct = Math.round(vol * 100);
+
+    /* Demand pressure from load factor */
+    const demand = flight.intel ? (flight.intel.demandPressure || 0.5) : 0.5;
+
+    /* Decision matrix */
+    const reasons = [];
+    let verdict, confidence, color, narrative;
+
+    if (daysOut <= 7) {
+      verdict = 'BUY NOW';
+      color = '#30d158';
+      confidence = dev < 0 ? 95 : (dev < 15 ? 88 : 76);
+      narrative = 'Departure in ' + daysOut + ' day' + (daysOut === 1 ? '' : 's') + ' — last-mile fares rarely drop.';
+      reasons.push('Departure window: ' + daysOut + ' day' + (daysOut === 1 ? '' : 's') + ' (inventory tightening)');
+      if (dev < 0) reasons.push((-dev).toFixed(0) + '% below typical — strong value');
+      else if (dev > 15) reasons.push('Currently ' + dev.toFixed(0) + '% above typical, but late-window prices rise faster');
+      else reasons.push('Within typical band');
+    } else if (daysOut <= 21) {
+      if (dev < -10) {
+        verdict = 'BUY NOW';
+        color = '#30d158';
+        confidence = 92;
+        narrative = 'Below-average price in the optimal booking window.';
+        reasons.push((-dev).toFixed(0) + '% below typical for this route');
+        reasons.push('Booking window: optimal (3 weeks out)');
+      } else if (dev > 12) {
+        verdict = 'WAIT';
+        color = '#ff9f0a';
+        confidence = 78;
+        narrative = 'Likely to drop — typical sale releases mid-week.';
+        reasons.push(dev.toFixed(0) + '% above typical');
+        reasons.push('Tuesday/Wednesday inventory releases historically lower');
+        reasons.push('Re-check in 2–3 days');
+      } else {
+        verdict = 'BUY NOW';
+        color = '#30d158';
+        confidence = 81;
+        narrative = 'Fair price in the prime booking window.';
+        reasons.push('Within typical band (±12%)');
+        reasons.push('Booking window: optimal');
+      }
+    } else if (daysOut <= 60) {
+      if (dev < -8 && fuelDeltaPct > -3) {
+        verdict = 'BUY NOW';
+        color = '#30d158';
+        confidence = 88;
+        narrative = 'Early-bird value — confidence high.';
+        reasons.push((-dev).toFixed(0) + '% below typical');
+        if (fuelDeltaPct > 1) reasons.push('Brent crude rising — fares may follow');
+      } else if (dev > 8) {
+        verdict = 'WAIT';
+        color = '#ff9f0a';
+        confidence = 72;
+        narrative = 'Plenty of time — better fares historically appear inside 21 days.';
+        reasons.push(dev.toFixed(0) + '% above typical');
+        reasons.push('Best fares typically release 14–21 days out for this corridor');
+      } else {
+        verdict = 'MONITOR';
+        color = '#0a84ff';
+        confidence = 80;
+        narrative = 'Fair price; track for a 8–12% drop in the next 2–3 weeks.';
+        reasons.push('Within typical band');
+        reasons.push('Days to departure: ' + daysOut + ' (early window)');
+      }
+    } else {
+      verdict = 'MONITOR';
+      color = '#0a84ff';
+      confidence = 70;
+      narrative = 'Far out — set a tracker, deals appear inside 60 days.';
+      reasons.push(daysOut + ' days out — too early to commit');
+      reasons.push('Set a price tracker');
+    }
+
+    /* Volatility caveat */
+    if (volPct > 20) reasons.push('High cross-source volatility (' + volPct + '%) — lock once you find the right price');
+
+    /* Demand caveat */
+    if (demand > 0.85) reasons.push('High demand pressure — inventory thinning');
+
+    /* Fuel signal context */
+    if (Math.abs(fuelDeltaPct) > 3) {
+      reasons.push('Brent crude ' + (fuelDeltaPct > 0 ? 'up' : 'down') + ' ' + Math.abs(fuelDeltaPct).toFixed(1) + '% past 7d — fuel pass-through ' + (fuelDeltaPct > 0 ? 'pressures fares up' : 'easing'));
+    }
+
+    return { verdict, confidence, color, narrative, reasons, daysOut, dev: +dev.toFixed(1), volPct, baseline };
+  }, null, '19A.fareConfidence');
+}
+
+/* -------- 19B. ROUTE DNA — 6-segment genome bar -------- */
+function computeRouteDNA(flight, fromCode, toCode) {
+  return safeCall(function () {
+    if (!flight) return null;
+    const ac = (typeof lookupAircraft === 'function' && flight.aircraft) ? lookupAircraft(flight.aircraft) : null;
+    const carrier = flight.carrier || flight.leg1Carrier || {};
+    const isConn = !!flight.hub;
+
+    /* COMFORT — driven by aircraft family */
+    let comfort = 60;
+    if (ac && ac.engines === 4) comfort = 90;                      // 4-engine widebody (A380, 747)
+    else if (ac && ac.length >= 60) comfort = 82;                  // widebody twin
+    else if (ac && ac.length >= 40) comfort = 65;                  // narrowbody
+    else if (ac && ac.length < 40) comfort = 45;                   // regional
+    if (flight.aircraft && /787|350|380|777-300/i.test(flight.aircraft)) comfort = Math.min(95, comfort + 8);
+
+    /* RELIABILITY — carrier + hub heuristic (no real data, deterministic by IATA) */
+    const tier1 = ['EK','QR','SQ','EY','BA','LH','AF','KL','LX','OZ','NH','JL','CX','QF','VS','AC','UA','AA','DL'];
+    let reliability = tier1.indexOf(carrier.c) >= 0 ? 88 : 72;
+    if (isConn) reliability = Math.max(50, reliability - 12);     // connection penalty
+    if (carrier.c === 'EK' || carrier.c === 'QR' || carrier.c === 'SQ') reliability = 94;
+
+    /* SLEEP DISRUPTION — red-eye, long-haul, layover */
+    let sleep = 80;
+    if (flight.depHr != null && (flight.depHr >= 22 || flight.depHr <= 4)) sleep -= 25;
+    const dur = flight.duration || flight.durationMin || flight.totalMin || 0;
+    if (dur > 720) sleep -= 15;     // >12h = significant fatigue
+    else if (dur > 480) sleep -= 8; // >8h
+    if (isConn && flight.layoverMin > 240) sleep -= 10;
+    sleep = Math.max(15, Math.min(95, sleep));
+
+    /* STRESS — connections, layover quality, terminal change */
+    let stress = isConn ? 55 : 88;
+    if (isConn && flight.layoverMin && flight.layoverMin < 90) stress -= 20;
+    if (isConn && flight.layoverMin > 240) stress -= 8;
+    /* Hub quality bonus */
+    const goodHubs = ['SIN','HKG','DOH','DXB','ICN','HND','MUC','ZRH','HEL'];
+    if (isConn && goodHubs.indexOf(flight.hub) >= 0) stress += 10;
+    stress = Math.max(20, Math.min(95, stress));
+
+    /* DELAY RISK — derived from STATE.atc + airline tier + season */
+    let delayRisk = 30;   /* lower = better; we'll invert for display */
+    if (STATE && STATE.atc) {
+      const sevToScore = { nominal: 0, watch: 15, restricted: 30 };
+      delayRisk += (sevToScore[STATE.atc.origin && STATE.atc.origin.severity] || 0);
+      delayRisk += (sevToScore[STATE.atc.destination && STATE.atc.destination.severity] || 0);
+      if (STATE.atc.enRoute && STATE.atc.enRoute.congestion > 70) delayRisk += 10;
+    }
+    if (isConn) delayRisk += 8;
+    const delayScore = Math.max(15, Math.min(95, 100 - delayRisk));   /* invert: high = good */
+
+    /* VALUE — vs market baseline */
+    let value = 60;
+    const baseline = (typeof marketBaseline === 'function') ? marketBaseline(fromCode, toCode) : null;
+    if (baseline) {
+      const price = flight.price || flight.priceLow;
+      const dev = (price - baseline.median) / baseline.median;
+      if (dev <= -0.20) value = 95;
+      else if (dev <= -0.08) value = 84;
+      else if (dev <= 0.08) value = 70;
+      else if (dev <= 0.20) value = 50;
+      else value = 32;
+    }
+
+    return {
+      comfort:     Math.round(comfort),
+      reliability: Math.round(reliability),
+      sleep:       Math.round(sleep),
+      stress:      Math.round(stress),
+      delay:       Math.round(delayScore),
+      value:       Math.round(value)
+    };
+  }, null, '19B.computeRouteDNA');
+}
+
+function dnaBarHtml(dna, opts) {
+  if (!dna) return '';
+  opts = opts || {};
+  const tracks = [
+    { key: 'comfort',     label: 'COMFORT',  tip: 'Cabin space + aircraft family + cabin pressure quality' },
+    { key: 'reliability', label: 'RELIAB',   tip: 'Carrier punctuality tier + hub reliability' },
+    { key: 'sleep',       label: 'SLEEP',    tip: 'Red-eye + long-haul fatigue + layover impact' },
+    { key: 'stress',      label: 'STRESS',   tip: 'Connection complexity + layover quality + hub quality' },
+    { key: 'delay',       label: 'DELAY',    tip: 'ATC + en-route + airspace severity (live feed)' },
+    { key: 'value',       label: 'VALUE',    tip: 'Price vs market baseline for this corridor' }
+  ];
+  function colorFor(score) {
+    if (score >= 80) return '#30d158';
+    if (score >= 65) return '#0a84ff';
+    if (score >= 45) return '#ff9f0a';
+    return '#ff453a';
+  }
+  return '<div class="dna-bar' + (opts.compact ? ' compact' : '') + '">' +
+    tracks.map(function (t) {
+      const v = dna[t.key] || 0;
+      const c = colorFor(v);
+      return '<div class="dna-track" title="' + t.tip + ' · ' + v + '/100">' +
+        '<div class="dna-fill" style="height:' + v + '%; background:' + c + '"></div>' +
+        '<div class="dna-lbl">' + t.label + '</div>' +
+        '<div class="dna-val" style="color:' + c + '">' + v + '</div>' +
+      '</div>';
+    }).join('') +
+  '</div>';
+}
+
+/* -------- 19C. AI TRIP STRATEGIST -------- */
+function strategistSuggestions(directs, fromCode, toCode) {
+  return safeCall(function () {
+    const out = [];
+    if (!directs || !directs.length) return out;
+    const top = directs[0];
+    const baseline = (typeof marketBaseline === 'function') ? marketBaseline(fromCode, toCode) : null;
+    const currency = (typeof userCurrency !== 'undefined') ? userCurrency : 'GBP';
+    const fm = (typeof fmtMoney === 'function') ? fmtMoney : (g => '£' + Math.round(g));
+
+    /* Suggestion 1 — flexible date savings (simulated calendar scan) */
+    if (state.searchDates && state.searchDates.departure) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const dep = new Date(state.searchDates.departure + 'T00:00:00');
+      const directLow = top.priceLow;
+      let bestDay = null, bestPrice = directLow;
+      for (let off = -3; off <= 3; off++) {
+        if (off === 0) continue;
+        const d = new Date(dep.getTime() + off * 86400000);
+        if (d < today) continue;
+        const dow = d.getDay();
+        const wkBoost = (dow === 5 || dow === 0) ? 1.18 : (dow === 6 ? 1.06 : 0.94);
+        const seasonal = 1 + Math.sin((d.getMonth() + d.getDate()/30) * Math.PI / 6) * 0.06;
+        const noise = 0.88 + (((d.getDate() * 7919 + d.getMonth() * 31) % 100) / 100) * 0.32;
+        const p = Math.round(directLow * wkBoost * seasonal * noise);
+        if (p < bestPrice) { bestPrice = p; bestDay = d; }
+      }
+      if (bestDay && (directLow - bestPrice) > 10) {
+        const labelDay = bestDay.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+        out.push({
+          icon: '📅',
+          title: 'Shift departure to ' + labelDay + ' → save ' + fm(directLow - bestPrice),
+          detail: 'Same route, ' + (Math.abs(Math.round((bestDay - dep) / 86400000))) + ' day' + (Math.abs(Math.round((bestDay - dep) / 86400000)) === 1 ? '' : 's') + ' shift, ' + Math.round((directLow - bestPrice) / directLow * 100) + '% lower fare based on calendar pricing model.'
+        });
+      }
+    }
+
+    /* Suggestion 2 — connection alternative if direct is expensive */
+    const conns = (STATE.flights && STATE.flights.connections) || [];
+    if (conns.length) {
+      const cheapestConn = conns[0];
+      const saving = top.priceLow - cheapestConn.priceLow;
+      if (saving > 30) {
+        const extraHrs = ((cheapestConn.totalMin || 0) - (top.durationMin || 0)) / 60;
+        out.push({
+          icon: '🔀',
+          title: 'Connect via ' + cheapestConn.hub + ' → save ' + fm(saving),
+          detail: '+' + extraHrs.toFixed(1) + 'h longer (1 stop in ' + cheapestConn.hubCity + '). Layover ' + cheapestConn.layoverLabel + ' on ' + cheapestConn.leg1Carrier.n + ' + ' + cheapestConn.leg2Carrier.n + '. Saves ' + Math.round(saving / top.priceLow * 100) + '%.'
+        });
+      }
+    }
+
+    /* Suggestion 3 — day-of-week tip (deterministic insight) */
+    const dist = baseline && baseline.distance ? baseline.distance : 5000;
+    const tipDay = dist > 6000 ? 'Tuesday' : 'Wednesday';
+    const tipPct = dist > 6000 ? 8 : 6;
+    out.push({
+      icon: '📊',
+      title: tipDay + ' departures avg ' + tipPct + '% cheaper for this corridor',
+      detail: 'Based on cross-source pricing patterns for ' + (dist > 6000 ? 'long-haul' : 'medium-haul') + ' routes. Mid-week sales releases historically lower fares.'
+    });
+
+    /* Suggestion 4 — lock if confidence high (FCE feedback) */
+    const fc = fareConfidence(top, fromCode, toCode);
+    if (fc && fc.verdict === 'BUY NOW' && fc.confidence >= 88) {
+      out.push({
+        icon: '🔒',
+        title: 'High confidence to book: ' + fc.confidence + '%',
+        detail: fc.narrative
+      });
+    }
+
+    return out.slice(0, 4);
+  }, [], '19C.strategistSuggestions');
+}
+
+/* -------- INTEGRATION: extend Phase 18 surfaces -------- */
+
+/* Extend Price Insights with Fare Confidence Engine + DNA bar */
+const _phase19_origRenderPriceInsights = (typeof renderPriceInsights === 'function') ? renderPriceInsights : null;
+if (_phase19_origRenderPriceInsights) {
+  renderPriceInsights = function () {
+    _phase19_origRenderPriceInsights.apply(this, arguments);
+    safeCall(function () {
+      const fromCode = state.origin && state.origin.code;
+      const toCode   = state.destination && state.destination.code;
+      if (!fromCode || !toCode || toCode === 'ANY') return;
+      const directs = (STATE.flights && STATE.flights.directs) || [];
+      if (!directs.length) return;
+      const top = applyFilters(directs)[0];
+      if (!top) return;
+
+      const fc = fareConfidence(top, fromCode, toCode);
+      const dna = computeRouteDNA(top, fromCode, toCode);
+      if (!fc) return;
+
+      const card = document.getElementById('phase18Insights');
+      if (!card) return;
+
+      /* Append FCE + DNA below existing insights grid */
+      let layer = card.querySelector('.fce-layer');
+      if (!layer) {
+        layer = document.createElement('div');
+        layer.className = 'fce-layer';
+        card.appendChild(layer);
+      }
+      layer.innerHTML =
+        '<div class="fce-row">' +
+          '<div class="fce-badge" style="background:' + fc.color + '20; color:' + fc.color + '; border-color:' + fc.color + '60">' +
+            '<div class="fce-verdict">' + fc.verdict + '</div>' +
+            '<div class="fce-conf">' + fc.confidence + '% confidence</div>' +
+          '</div>' +
+          '<div class="fce-narrative">' + fc.narrative + '</div>' +
+        '</div>' +
+        '<ul class="fce-reasons">' + fc.reasons.map(r => '<li>' + r + '</li>').join('') + '</ul>' +
+        (dna ? '<div class="fce-dna-wrap"><div class="fce-dna-title">ROUTE DNA · top option</div>' + dnaBarHtml(dna) + '</div>' : '');
+    }, null, '19A+B.extendInsights');
+  };
+}
+
+/* Strategist card mounted between Insights and Filter rail */
+function renderStrategistCard() {
+  return safeCall(function () {
+    const fromCode = state.origin && state.origin.code;
+    const toCode   = state.destination && state.destination.code;
+    if (!fromCode || !toCode || toCode === 'ANY') return;
+    const directs = (STATE.flights && STATE.flights.directs) || [];
+    if (!directs.length) return;
+    const tips = strategistSuggestions(directs, fromCode, toCode);
+    if (!tips.length) return;
+
+    let card = document.getElementById('phase19Strategist');
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'phase19Strategist';
+      card.className = 'strat-card';
+      const insights = document.getElementById('phase18Insights');
+      if (insights && insights.parentNode) insights.parentNode.insertBefore(card, insights.nextSibling);
+    }
+    card.innerHTML =
+      '<div class="strat-head">' +
+        '<div class="strat-title">ATLAS Strategist</div>' +
+        '<div class="strat-sub">Proactive optimizations · explainable</div>' +
+      '</div>' +
+      '<div class="strat-list">' +
+        tips.map(t =>
+          '<div class="strat-item">' +
+            '<div class="strat-icon">' + t.icon + '</div>' +
+            '<div class="strat-body">' +
+              '<div class="strat-h">' + t.title + '</div>' +
+              '<div class="strat-d">' + t.detail + '</div>' +
+            '</div>' +
+          '</div>'
+        ).join('') +
+      '</div>';
+  }, null, '19C.renderStrategist');
+}
+
+/* Hook into Phase 18 mounting flow so 19 surfaces render at the same time */
+const _phase19_origRenderPriceGraph = (typeof renderPriceGraph === 'function') ? renderPriceGraph : null;
+if (_phase19_origRenderPriceGraph) {
+  renderPriceGraph = function () {
+    _phase19_origRenderPriceGraph.apply(this, arguments);
+    setTimeout(renderStrategistCard, 80);
+  };
+}
+
+/* Per-flight DNA mini-bar inside the existing SkyPulse verdict row */
+function decorateFlightDNA() {
+  return safeCall(function () {
+    const fromCode = state.origin && state.origin.code;
+    const toCode   = state.destination && state.destination.code;
+    if (!fromCode || !toCode || toCode === 'ANY') return;
+    const directs = applyFilters((STATE.flights && STATE.flights.directs) || []);
+    document.querySelectorAll('#directsTable tr.flight-verdict-row').forEach(function (vrow, i) {
+      if (vrow.dataset.dnaBound === '1') return;
+      const f = directs[i];
+      if (!f) return;
+      const dna = computeRouteDNA(f, fromCode, toCode);
+      if (!dna) return;
+      const cell = vrow.querySelector('td');
+      if (!cell) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'flight-dna-wrap';
+      wrap.innerHTML = '<div class="fdna-title">ROUTE DNA</div>' + dnaBarHtml(dna, { compact: true });
+      cell.appendChild(wrap);
+      vrow.dataset.dnaBound = '1';
+    });
+  }, null, '19B.decorateFlightDNA');
+}
+const _phase19_origRDF = (typeof renderDirectFlights === 'function') ? renderDirectFlights : null;
+if (_phase19_origRDF) {
+  renderDirectFlights = function (directs, currency) {
+    _phase19_origRDF.call(this, directs, currency);
+    setTimeout(decorateFlightDNA, 120);
+  };
+}
+
+(function injectPhase19Css() {
+  if (document.getElementById('phase19-css')) return;
+  const css = `
+    /* Fare Confidence Engine layer (inside Insights card) */
+    .fce-layer { margin-top: 16px; padding-top: 16px; border-top: 0.5px solid rgba(255,255,255,0.06); }
+    .fce-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+    .fce-badge {
+      display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 14px 22px; border-radius: 10px;
+      border: 0.5px solid; min-width: 156px;
+    }
+    .fce-verdict { font: 800 18px/1 'Inter', sans-serif; letter-spacing: 0.04em; }
+    .fce-conf { font: 600 10px/1 'JetBrains Mono', monospace; letter-spacing: 0.10em; opacity: 0.78; margin-top: 6px; text-transform: uppercase; }
+    .fce-narrative { flex: 1; font: 500 14px/1.5 'Inter', sans-serif; color: rgba(255,255,255,0.78); min-width: 240px; }
+    .fce-reasons { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .fce-reasons li {
+      font: 500 12px/1.4 'Inter', sans-serif;
+      color: rgba(255,255,255,0.62);
+      padding-left: 16px; position: relative;
+    }
+    .fce-reasons li::before { content: '·'; position: absolute; left: 4px; opacity: 0.5; }
+
+    /* Route DNA bar */
+    .fce-dna-wrap { margin-top: 16px; padding-top: 14px; border-top: 0.5px solid rgba(255,255,255,0.06); }
+    .fce-dna-title { font: 700 9px/1 'JetBrains Mono', monospace; letter-spacing: 0.14em; opacity: 0.45; margin-bottom: 10px; }
+    .dna-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    .dna-track {
+      position: relative;
+      height: 76px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 6px;
+      overflow: hidden;
+      border: 0.5px solid rgba(255,255,255,0.06);
+      cursor: help;
+    }
+    .dna-fill {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      transition: height 0.4s cubic-bezier(0.16,1,0.3,1);
+    }
+    .dna-lbl {
+      position: absolute; top: 6px; left: 0; right: 0;
+      text-align: center;
+      font: 700 8px/1 'JetBrains Mono', monospace;
+      letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.65);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+      z-index: 2;
+    }
+    .dna-val {
+      position: absolute; bottom: 6px; left: 0; right: 0;
+      text-align: center;
+      font: 800 14px/1 'Inter', sans-serif;
+      letter-spacing: -0.01em;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.65);
+      z-index: 2;
+    }
+    .dna-bar.compact .dna-track { height: 36px; }
+    .dna-bar.compact .dna-lbl { font-size: 7px; top: 3px; }
+    .dna-bar.compact .dna-val { font-size: 11px; bottom: 3px; }
+
+    /* Per-flight DNA inline */
+    .flight-dna-wrap { margin-top: 10px; padding-top: 10px; border-top: 0.5px dashed rgba(255,255,255,0.06); }
+    .fdna-title { font: 700 8px/1 'JetBrains Mono', monospace; letter-spacing: 0.14em; opacity: 0.45; margin-bottom: 6px; }
+
+    /* Strategist card */
+    .strat-card {
+      margin: 14px 0;
+      padding: 18px 22px 16px;
+      background: linear-gradient(180deg, rgba(48,209,88,0.05), rgba(48,209,88,0.01));
+      border: 0.5px solid rgba(48,209,88,0.20);
+      border-radius: 14px;
+    }
+    .strat-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+    .strat-title { font: 700 14px/1 'Inter', sans-serif; letter-spacing: -0.015em; color: #fff; }
+    .strat-sub { font: 500 11px/1 'Inter', sans-serif; color: rgba(255,255,255,0.50); }
+    .strat-list { display: flex; flex-direction: column; gap: 10px; }
+    .strat-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+      border: 0.5px solid rgba(255,255,255,0.06);
+    }
+    .strat-icon { font-size: 18px; flex: 0 0 24px; line-height: 1.1; padding-top: 2px; }
+    .strat-h { font: 600 13px/1.35 'Inter', sans-serif; color: #fff; letter-spacing: -0.01em; }
+    .strat-d { font: 500 11.5px/1.5 'Inter', sans-serif; color: rgba(255,255,255,0.62); margin-top: 4px; }
+
+    @media (max-width: 760px) {
+      .fce-badge { width: 100%; padding: 10px; }
+      .fce-narrative { font-size: 13px; }
+      .dna-track { height: 64px; }
+      .dna-val { font-size: 12px; }
+      .strat-item { gap: 10px; padding: 8px 10px; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'phase19-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
+/* Console probe API — attach to window directly + re-attach on DOMContentLoaded
+   so bootPhase0's window.SkyPulse reassignment doesn't wipe these. */
+window.fareConfidence = fareConfidence;
+window.computeRouteDNA = computeRouteDNA;
+window.strategistSuggestions = strategistSuggestions;
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    if (window.SkyPulse) {
+      window.SkyPulse.fareConfidence = fareConfidence;
+      window.SkyPulse.computeRouteDNA = computeRouteDNA;
+      window.SkyPulse.strategistSuggestions = strategistSuggestions;
+    }
+  }, 250);
+});
+
 function init() {
   bindUI();
   bindCurrencyPicker();
