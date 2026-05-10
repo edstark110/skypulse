@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- SubstrateRx-inspired editorial type stack -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- Full d3 bundle (includes d3-array · fixes the "t.Adder is not a constructor" error
      that prevented d3-geo from initializing and continents from rendering) -->
@@ -14472,171 +14474,148 @@ function buildPromoBanner() {
 }
 
 function buildHomepageSections() {
-  if (document.getElementById('atlasHomepage')) return;
+  /* SUBSTRATERX-inspired rebuild — kill the DOSS scaffold, ship editorial */
+  document.querySelectorAll('#atlasHomepage, .a-hero, .a-features, .a-modules, .a-cta, .a-footer').forEach(el => el.remove());
+  if (document.getElementById('atlasEditorial')) return;
   const wrap = document.createElement('div');
-  wrap.id = 'atlasHomepage';
-  wrap.className = 'a-home';
+  wrap.id = 'atlasEditorial';
+  wrap.className = 'sr-home';
 
-  /* HERO TABS section (sits above search) */
+  /* EDITORIAL HERO — substraterx-style: tiny eyebrow, big serif, restrained sub */
   const heroTabsHtml =
-    '<section class="a-hero">' +
-      '<div class="a-container">' +
-        '<div class="a-hero__head">' +
-          '<h1 class="a-hero__title">Smarter flight decisions.</h1>' +
-          '<p class="a-hero__sub">An aviation intelligence platform built for travelers who think ahead. Predict fares. Analyze journeys. Decide with confidence.</p>' +
+    '<section class="sr-hero">' +
+      '<div class="sr-container">' +
+        '<div class="sr-eyebrow">' +
+          '<span class="sr-eyebrow__dot"></span>' +
+          '<span>ATLAS · Aviation intelligence · v1.0</span>' +
         '</div>' +
-        '<div class="a-tabs" role="tablist">' +
-          HERO_TABS.map((t, i) =>
-            '<button class="a-tab' + (i === 0 ? ' a-tab--on' : '') + '" data-tab="' + t.key + '" role="tab">' +
-              '<span class="a-tab__label">' + t.label + '</span>' +
-              '<span class="a-tab__sub">' + t.sub + '</span>' +
-            '</button>'
-          ).join('') +
-        '</div>' +
-        '<div class="a-tabpanels">' +
-          HERO_TABS.map((t, i) =>
-            '<div class="a-tabpanel' + (i === 0 ? ' a-tabpanel--on' : '') + '" data-panel="' + t.key + '">' +
-              '<p class="a-tabpanel__body">' + t.body + '</p>' +
-            '</div>'
-          ).join('') +
-        '</div>' +
+        '<h1 class="sr-hero__title">Know your routes.</h1>' +
+        '<p class="sr-hero__lede">' +
+          'Real-time fare intelligence. Live operational signals.<br/>' +
+          '<em>Precision instruments</em> for travel decisions.' +
+        '</p>' +
+        '<div class="sr-hero__rule" aria-hidden="true"></div>' +
       '</div>' +
     '</section>';
 
-  /* 3-row FEATURE grid */
+  /* THREE PRINCIPLES — editorial, numbered, serif */
   const featureGridHtml =
-    '<section class="a-features">' +
-      '<div class="a-container">' +
-        '<h2 class="a-section__title">Built for travelers who think ahead.</h2>' +
-        '<div class="a-features__rows">' +
+    '<section class="sr-principles">' +
+      '<div class="sr-container">' +
+        '<div class="sr-section__head">' +
+          '<div class="sr-section__eyebrow">— Principles</div>' +
+          '<h2 class="sr-section__title">Three things ATLAS does well.</h2>' +
+        '</div>' +
+        '<ol class="sr-principles__list">' +
           FEATURE_ROWS.map(f =>
-            '<div class="a-features__row">' +
-              '<div class="a-features__lead">' +
-                '<div class="a-features__num">' + f.num + '</div>' +
-                '<div class="a-features__icon">' + f.icon + '</div>' +
-                '<div class="a-features__title">' + f.title + '</div>' +
+            '<li class="sr-principle">' +
+              '<div class="sr-principle__num">' + f.num + '</div>' +
+              '<div class="sr-principle__body">' +
+                '<h3 class="sr-principle__title">' + f.title + '</h3>' +
+                '<p class="sr-principle__sub">' + f.sub + '</p>' +
+                '<p class="sr-principle__desc">' + f.desc + '</p>' +
               '</div>' +
-              '<div class="a-features__divider" aria-hidden="true"></div>' +
-              '<div class="a-features__body">' +
-                '<div class="a-features__sub">' + f.sub + '</div>' +
-                '<p class="a-features__desc">' + f.desc + '</p>' +
-              '</div>' +
-            '</div>'
+            '</li>'
           ).join('') +
-        '</div>' +
+        '</ol>' +
       '</div>' +
     '</section>';
 
-  /* MODULE grid */
+  /* INSTRUMENTS — substraterx vocabulary: 'precision instruments' */
   const moduleGridHtml =
-    '<section class="a-modules">' +
-      '<div class="a-container">' +
-        '<div class="a-section__head">' +
-          '<h2 class="a-section__title">Modules for every decision.</h2>' +
-          '<p class="a-section__sub">Eight intelligence layers, working together. Adaptable per route.</p>' +
+    '<section class="sr-instruments">' +
+      '<div class="sr-container">' +
+        '<div class="sr-section__head">' +
+          '<div class="sr-section__eyebrow">— Instruments</div>' +
+          '<h2 class="sr-section__title">Eight instruments. One panel.</h2>' +
         '</div>' +
-        '<div class="a-modules__grid">' +
-          MODULE_GRID.map(m =>
-            '<div class="a-modules__card">' +
-              '<div class="a-modules__glyph">' + m.glyph + '</div>' +
-              '<div class="a-modules__name">' + m.name + '</div>' +
-              '<div class="a-modules__desc">' + m.desc + '</div>' +
+        '<div class="sr-instruments__list">' +
+          MODULE_GRID.map((m, i) =>
+            '<div class="sr-instrument">' +
+              '<span class="sr-instrument__idx">' + String(i + 1).padStart(2, '0') + '</span>' +
+              '<span class="sr-instrument__name">' + m.name + '</span>' +
+              '<span class="sr-instrument__sep" aria-hidden="true"></span>' +
+              '<span class="sr-instrument__desc">' + m.desc + '</span>' +
             '</div>'
           ).join('') +
         '</div>' +
       '</div>' +
     '</section>';
 
-  /* Dark CTA banner */
+  /* CTA — quiet, editorial */
   const ctaHtml =
-    '<section class="a-cta">' +
-      '<div class="a-container">' +
-        '<h2 class="a-cta__title">Upgrade your travel decisions.</h2>' +
-        '<p class="a-cta__sub">Fast to read. Easy to trust. Built to scale with every route.</p>' +
-        '<button class="a-btn a-btn--lg a-btn--light" onclick="document.querySelector(\'#origin, [data-origin]\')?.focus()">Search a route ↓</button>' +
+    '<section class="sr-cta">' +
+      '<div class="sr-container">' +
+        '<h2 class="sr-cta__title">Pick a route.<br/>The instruments come alive.</h2>' +
+        '<button class="sr-btn" onclick="document.querySelector(\'#origin, [data-origin]\')?.focus()">' +
+          '<span>Begin</span><span class="sr-btn__arrow">↓</span>' +
+        '</button>' +
       '</div>' +
     '</section>';
 
-  /* Footer */
+  /* FOOTER — quiet 2-line editorial */
   const footerHtml =
-    '<footer class="a-footer">' +
-      '<div class="a-container">' +
-        '<div class="a-footer__top">' +
-          '<div class="a-footer__brand">' +
-            '<div class="a-footer__logo">ATLAS</div>' +
-            '<p class="a-footer__tag">Aviation intelligence, decoded.</p>' +
-          '</div>' +
-          '<div class="a-footer__cols">' +
-            '<div class="a-footer__col">' +
-              '<div class="a-footer__h">Capabilities</div>' +
-              '<a class="a-footer__lnk">Fare Confidence</a>' +
-              '<a class="a-footer__lnk">Route DNA</a>' +
-              '<a class="a-footer__lnk">Aircraft Intel</a>' +
-              '<a class="a-footer__lnk">Airport Intel</a>' +
-            '</div>' +
-            '<div class="a-footer__col">' +
-              '<div class="a-footer__h">Modules</div>' +
-              '<a class="a-footer__lnk">Climate Weather</a>' +
-              '<a class="a-footer__lnk">ATC Severity</a>' +
-              '<a class="a-footer__lnk">Source Compare</a>' +
-              '<a class="a-footer__lnk">Trip Strategist</a>' +
-            '</div>' +
-            '<div class="a-footer__col">' +
-              '<div class="a-footer__h">About</div>' +
-              '<a class="a-footer__lnk" href="https://github.com/edstark110/skypulse" target="_blank" rel="noopener">GitHub</a>' +
-              '<a class="a-footer__lnk">Live status</a>' +
-            '</div>' +
+    '<footer class="sr-footer">' +
+      '<div class="sr-container">' +
+        '<div class="sr-footer__row">' +
+          '<div class="sr-footer__brand">ATLAS</div>' +
+          '<div class="sr-footer__meta">' +
+            '<a href="https://github.com/edstark110/skypulse" target="_blank" rel="noopener">GitHub</a>' +
+            '<span class="sr-footer__sep">·</span>' +
+            '<span>v1.0 · 2026</span>' +
           '</div>' +
         '</div>' +
-        '<div class="a-footer__bottom">' +
-          '<div class="a-footer__copy">© ATLAS 2026 · All rights reserved</div>' +
-          '<div class="a-footer__legal">' +
-            'Estimates from public signals · Not live fares · No affiliate links' +
-          '</div>' +
-        '</div>' +
+        '<p class="sr-footer__legal">' +
+          'Estimates derived from public signals — fuel cost, capacity, distance, carrier mix. ' +
+          '<em>Not live fares.</em> No affiliate links. No monetization.' +
+        '</p>' +
       '</div>' +
     '</footer>';
 
   wrap.innerHTML = heroTabsHtml + featureGridHtml + moduleGridHtml + ctaHtml + footerHtml;
 
-  /* Insert: hero tabs BEFORE the actual search hero, everything else AFTER */
+  /* Insert: editorial hero BEFORE the search, rest of journey AFTER */
   const realHero = document.querySelector('section.hero');
   if (realHero && realHero.parentNode) {
-    /* Split the wrapper: insert hero tabs section before real hero, rest after */
-    const heroSec = wrap.querySelector('.a-hero');
-    if (heroSec) realHero.parentNode.insertBefore(heroSec, realHero);
-    /* All remaining children appended after real hero */
+    const editorialHero = wrap.querySelector('.sr-hero');
+    if (editorialHero) realHero.parentNode.insertBefore(editorialHero, realHero);
+    /* Append the rest of the journey AFTER the search hero */
     while (wrap.firstChild) {
       realHero.parentNode.insertBefore(wrap.firstChild, realHero.nextSibling);
     }
   } else {
     document.body.appendChild(wrap);
   }
-
-  /* Tab switching */
-  document.querySelectorAll('.a-tab').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const k = btn.dataset.tab;
-      document.querySelectorAll('.a-tab').forEach(b => b.classList.toggle('a-tab--on', b.dataset.tab === k));
-      document.querySelectorAll('.a-tabpanel').forEach(p => p.classList.toggle('a-tabpanel--on', p.dataset.panel === k));
-    });
-  });
 }
 
-/* CSS — restrained, monochrome, premium */
+/* CSS — substraterx-inspired editorial: Fraunces serif + Source Sans + JetBrains Mono */
 (function injectHomepageCss() {
   if (document.getElementById('homepage-css')) return;
   const css = `
     :root {
-      --a-bg: #0a0b0f;
-      --a-bg-2: #0e1015;
-      --a-bg-light: #f6f5f2;
-      --a-text: #fff;
-      --a-text-mute: rgba(255,255,255,0.62);
-      --a-text-faint: rgba(255,255,255,0.42);
-      --a-border: rgba(255,255,255,0.08);
-      --a-border-strong: rgba(255,255,255,0.18);
-      --a-accent: #0a84ff;
+      --sr-bg:           #0F1320;        /* substraterx navy */
+      --sr-bg-2:         #131829;
+      --sr-paper:        #F2EFE7;        /* warm cream for accents */
+      --sr-ink:          #E9E8E2;        /* off-white text */
+      --sr-ink-mute:     rgba(233,232,226,0.62);
+      --sr-ink-faint:    rgba(233,232,226,0.40);
+      --sr-rule:         rgba(233,232,226,0.10);
+      --sr-rule-strong:  rgba(233,232,226,0.20);
+      --sr-accent:       #C7B299;        /* warm metallic */
+      --sr-serif:        'Fraunces', 'Times New Roman', serif;
+      --sr-sans:         'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+      --sr-mono:         'JetBrains Mono', ui-monospace, monospace;
+    }
+    /* Backwards-compat aliases for any leftover .a-* references */
+    :root {
+      --a-bg: var(--sr-bg);
+      --a-bg-2: var(--sr-bg-2);
+      --a-text: var(--sr-ink);
+      --a-text-mute: var(--sr-ink-mute);
+      --a-text-faint: var(--sr-ink-faint);
+      --a-border: var(--sr-rule);
+      --a-border-strong: var(--sr-rule-strong);
+      --a-accent: var(--sr-accent);
     }
 
     /* Promo banner (top, sticky-feel) */
@@ -14928,6 +14907,276 @@ function buildHomepageSections() {
       .a-tab { min-width: 110px; padding: 14px 12px; }
       .a-promo__inner { padding: 6px 16px; }
       .a-promo__text { font-size: 11px; }
+    }
+
+    /* ============================================================ */
+    /*   SUBSTRATERX-INSPIRED EDITORIAL HOMEPAGE                    */
+    /* ============================================================ */
+
+    /* Apply navy + serif baseline only when in pre-search state */
+    body[data-search-state="empty"] {
+      background: var(--sr-bg) !important;
+      color: var(--sr-ink);
+      font-family: var(--sr-sans);
+    }
+    body[data-search-state="empty"] section.hero { background: transparent !important; }
+    body[data-search-state="empty"] nav { background: transparent !important; border-bottom: 0.5px solid var(--sr-rule); }
+
+    /* Hide the entire editorial scaffold post-search */
+    body[data-search-state="active"] #atlasEditorial,
+    body[data-search-state="active"] .sr-hero,
+    body[data-search-state="active"] .sr-principles,
+    body[data-search-state="active"] .sr-instruments,
+    body[data-search-state="active"] .sr-cta,
+    body[data-search-state="active"] .sr-footer { display: none !important; }
+
+    .sr-container { max-width: 920px; margin: 0 auto; padding: 0 32px; }
+
+    /* HERO — Fraunces big serif, restrained */
+    .sr-hero {
+      padding: 120px 0 80px;
+      text-align: center;
+      position: relative;
+    }
+    .sr-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font: 500 11px/1 var(--sr-mono);
+      letter-spacing: 0.14em;
+      color: var(--sr-ink-faint);
+      text-transform: uppercase;
+      margin-bottom: 36px;
+    }
+    .sr-eyebrow__dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--sr-accent);
+      box-shadow: 0 0 8px var(--sr-accent);
+      animation: srPulse 2.6s ease-in-out infinite;
+    }
+    @keyframes srPulse { 0%,100% { opacity: 0.45; } 50% { opacity: 1; } }
+    .sr-hero__title {
+      font-family: var(--sr-serif) !important;
+      font-weight: 400 !important;
+      font-size: clamp(48px, 9vw, 112px) !important;
+      line-height: 0.96 !important;
+      letter-spacing: -0.04em !important;
+      color: var(--sr-ink) !important;
+      margin: 0 0 28px !important;
+      font-variation-settings: 'opsz' 144;
+    }
+    .sr-hero__lede {
+      font-family: var(--sr-sans);
+      font-weight: 400;
+      font-size: clamp(15px, 1.6vw, 18px);
+      line-height: 1.55;
+      color: var(--sr-ink-mute);
+      max-width: 540px;
+      margin: 0 auto 42px;
+    }
+    .sr-hero__lede em {
+      font-family: var(--sr-serif);
+      font-style: italic;
+      font-weight: 400;
+      color: var(--sr-accent);
+    }
+    .sr-hero__rule {
+      width: 1px; height: 56px;
+      background: var(--sr-rule-strong);
+      margin: 0 auto;
+    }
+
+    /* Section heads */
+    .sr-section__head { max-width: 720px; margin: 0 0 48px; }
+    .sr-section__eyebrow {
+      font: 500 11px/1 var(--sr-mono);
+      letter-spacing: 0.18em;
+      color: var(--sr-ink-faint);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .sr-section__title {
+      font-family: var(--sr-serif) !important;
+      font-weight: 400 !important;
+      font-size: clamp(32px, 4.5vw, 56px) !important;
+      line-height: 1.05 !important;
+      letter-spacing: -0.025em !important;
+      color: var(--sr-ink) !important;
+      margin: 0 !important;
+      font-variation-settings: 'opsz' 96;
+    }
+
+    /* PRINCIPLES — numbered list */
+    .sr-principles {
+      padding: 100px 0;
+      border-top: 0.5px solid var(--sr-rule);
+    }
+    .sr-principles__list {
+      list-style: none; margin: 0; padding: 0;
+    }
+    .sr-principle {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 36px;
+      padding: 36px 0;
+      border-bottom: 0.5px solid var(--sr-rule);
+    }
+    .sr-principle:first-child { border-top: 0.5px solid var(--sr-rule); }
+    .sr-principle__num {
+      font: 500 13px/1 var(--sr-mono);
+      letter-spacing: 0.12em;
+      color: var(--sr-accent);
+      padding-top: 8px;
+    }
+    .sr-principle__title {
+      font-family: var(--sr-serif) !important;
+      font-weight: 400 !important;
+      font-size: clamp(22px, 2.8vw, 32px) !important;
+      line-height: 1.15 !important;
+      letter-spacing: -0.02em !important;
+      color: var(--sr-ink) !important;
+      margin: 0 0 8px !important;
+    }
+    .sr-principle__sub {
+      font: italic 400 16px/1.4 var(--sr-serif);
+      color: var(--sr-accent);
+      margin: 0 0 14px;
+    }
+    .sr-principle__desc {
+      font: 400 14.5px/1.6 var(--sr-sans);
+      color: var(--sr-ink-mute);
+      max-width: 560px;
+      margin: 0;
+    }
+
+    /* INSTRUMENTS — table-like list */
+    .sr-instruments {
+      padding: 100px 0;
+      border-top: 0.5px solid var(--sr-rule);
+    }
+    .sr-instruments__list {
+      display: flex; flex-direction: column;
+      border-top: 0.5px solid var(--sr-rule);
+    }
+    .sr-instrument {
+      display: grid;
+      grid-template-columns: 60px 200px 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 0.5px solid var(--sr-rule);
+      font-family: var(--sr-sans);
+      transition: padding-left 0.18s ease, color 0.18s ease;
+    }
+    .sr-instrument:hover { padding-left: 12px; color: var(--sr-accent); }
+    .sr-instrument__idx {
+      font: 500 11px/1 var(--sr-mono);
+      letter-spacing: 0.10em;
+      color: var(--sr-ink-faint);
+    }
+    .sr-instrument__name {
+      font-family: var(--sr-serif);
+      font-weight: 400;
+      font-size: 18px;
+      letter-spacing: -0.012em;
+      color: var(--sr-ink);
+    }
+    .sr-instrument__sep { display: block; height: 1px; background: var(--sr-rule); }
+    .sr-instrument__desc {
+      font: 400 13px/1.4 var(--sr-sans);
+      color: var(--sr-ink-mute);
+    }
+
+    /* CTA */
+    .sr-cta {
+      padding: 120px 0 100px;
+      border-top: 0.5px solid var(--sr-rule);
+      text-align: center;
+    }
+    .sr-cta__title {
+      font-family: var(--sr-serif) !important;
+      font-weight: 400 !important;
+      font-size: clamp(36px, 5.5vw, 72px) !important;
+      line-height: 1.05 !important;
+      letter-spacing: -0.03em !important;
+      color: var(--sr-ink) !important;
+      margin: 0 0 36px !important;
+      font-variation-settings: 'opsz' 120;
+    }
+    .sr-btn {
+      display: inline-flex; align-items: center; gap: 12px;
+      padding: 16px 28px;
+      background: transparent;
+      border: 0.5px solid var(--sr-rule-strong);
+      border-radius: 999px;
+      color: var(--sr-ink);
+      font: 500 13px/1 var(--sr-sans);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .sr-btn:hover {
+      border-color: var(--sr-accent);
+      color: var(--sr-accent);
+      transform: translateY(-1px);
+    }
+    .sr-btn__arrow { font-size: 16px; line-height: 1; }
+
+    /* FOOTER */
+    .sr-footer {
+      padding: 36px 0 28px;
+      border-top: 0.5px solid var(--sr-rule);
+    }
+    .sr-footer__row {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .sr-footer__brand {
+      font-family: var(--sr-serif);
+      font-weight: 400;
+      font-size: 22px;
+      letter-spacing: -0.015em;
+      color: var(--sr-ink);
+    }
+    .sr-footer__meta {
+      display: flex; align-items: center; gap: 12px;
+      font: 500 11px/1 var(--sr-mono);
+      letter-spacing: 0.10em;
+      color: var(--sr-ink-faint);
+    }
+    .sr-footer__meta a { color: var(--sr-ink-faint); text-decoration: none; transition: color 0.15s; }
+    .sr-footer__meta a:hover { color: var(--sr-accent); }
+    .sr-footer__legal {
+      font: 400 12px/1.55 var(--sr-sans);
+      color: var(--sr-ink-faint);
+      max-width: 720px;
+      margin: 0;
+    }
+    .sr-footer__legal em {
+      font-family: var(--sr-serif);
+      font-style: italic;
+    }
+
+    /* Promo banner — re-tinted to navy */
+    body[data-search-state="empty"] .a-promo {
+      background: rgba(199,178,153,0.08);
+      border-bottom: 0.5px solid var(--sr-rule);
+    }
+    body[data-search-state="empty"] .a-promo__text {
+      font-family: var(--sr-mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--sr-ink-mute);
+    }
+
+    /* Mobile */
+    @media (max-width: 760px) {
+      .sr-container { padding: 0 20px; }
+      .sr-hero { padding: 80px 0 56px; }
+      .sr-principle { grid-template-columns: 60px 1fr; gap: 18px; padding: 24px 0; }
+      .sr-instrument { grid-template-columns: 40px 1fr; gap: 12px; }
+      .sr-instrument__sep, .sr-instrument__desc { display: none; }
+      .sr-footer__row { flex-direction: column; align-items: flex-start; gap: 8px; }
     }
   `;
   const el = document.createElement('style');
