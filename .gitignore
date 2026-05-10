@@ -36,6 +36,10 @@ desktop.ini
 *.log
 logs/
 
+# Build artifacts (data generators)
+_*.json
+_*.js
+
 # Build output (n/a but reserved)
 dist/
 build/

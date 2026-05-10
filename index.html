@@ -1155,8 +1155,12 @@
 (() => {
 'use strict';
 
-/* ---------- Data: airports ---------- */
-const AIRPORTS = [
+/* ---------- Data: airports ----------
+   Seed list (40 hubs) for instant render + featured routes + marquee.
+   Full global list (~7,000 IATA airports) loads lazily from /airports.json
+   on first script tick; autocomplete + lookups switch to it once available.
+   ============================================================ */
+let AIRPORTS = [
   { iata: 'DXB', city: 'Dubai',         country: 'United Arab Emirates', lat: 25.253, lng: 55.365 },
   { iata: 'AUH', city: 'Abu Dhabi',     country: 'United Arab Emirates', lat: 24.433, lng: 54.651 },
   { iata: 'DOH', city: 'Doha',          country: 'Qatar',                lat: 25.273, lng: 51.608 },
@@ -1199,7 +1203,31 @@ const AIRPORTS = [
   { iata: 'NBO', city: 'Nairobi',       country: 'Kenya',                lat: -1.319, lng: 36.928 },
 ];
 
-const AIRPORT_BY_IATA = Object.fromEntries(AIRPORTS.map(a => [a.iata, a]));
+let AIRPORT_BY_IATA = Object.fromEntries(AIRPORTS.map(a => [a.iata, a]));
+let AIRPORTS_LOADED = false;
+
+/* ---------- Lazy-load full global airport list ---------- */
+function loadFullAirports() {
+  return fetch('/airports.json')
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(rows => {
+      // rows = [[iata, city, country, lat, lng, name], ...]
+      const full = rows.map(r => ({
+        iata: r[0], city: r[1], country: r[2],
+        lat:  r[3], lng:  r[4], name: r[5],
+      }));
+      AIRPORTS = full;
+      AIRPORT_BY_IATA = Object.fromEntries(full.map(a => [a.iata, a]));
+      AIRPORTS_LOADED = true;
+      // refresh status pill if visible
+      const pill = document.querySelector('.status-pill');
+      if (pill) pill.innerHTML = `<span class="dot"></span>ATLAS · ${full.length.toLocaleString()} destinations · ${AIRLINES.length} airlines`;
+    })
+    .catch(err => {
+      // silent fallback: seed list keeps working
+      console.warn('Full airport list unavailable; using 40-hub seed.', err);
+    });
+}
 
 const AIRLINES = [
   { code: 'EK', name: 'Emirates',           hub: 'DXB', tier: 1.10 },
@@ -1571,7 +1599,7 @@ function viewHome() {
     <section class="hero wrap">
       <div class="status-pill">
         <span class="dot"></span>
-        ATLAS · ${AIRPORTS.length} destinations · ${AIRLINES.length} airlines
+        ATLAS · ${AIRPORTS_LOADED ? AIRPORTS.length.toLocaleString() : '7,000+'} destinations · ${AIRLINES.length} airlines
       </div>
       <h1 class="headline">Find the <em>right</em> flight.</h1>
       <p class="lede">Precision instruments for flight comparison. One search,
@@ -1603,8 +1631,9 @@ function viewHome() {
         <article class="cap-card">
           <div class="cap-icon">◆</div>
           <div class="cap-num">01 · Search</div>
-          <h3 class="cap-title">Multi-airline search</h3>
-          <p class="cap-desc">${AIRLINES.length} airlines across ${AIRPORTS.length} destinations.
+          <h3 class="cap-title">Worldwide airport coverage</h3>
+          <p class="cap-desc">Every IATA-coded airport on the planet — over 7,000 cities,
+            from major hubs to regional fields. ${AIRLINES.length} airlines.
             Origin, destination, dates, cabin — and you see every viable option in one view.</p>
         </article>
         <article class="cap-card">
@@ -1661,8 +1690,8 @@ function viewHome() {
       <div class="metrics">
         <div class="metric">
           <div class="metric-label">Destinations</div>
-          <div class="metric-value">${AIRPORTS.length}<span class="unit">cities</span></div>
-          <div class="metric-desc">Major hubs across six continents</div>
+          <div class="metric-value">${AIRPORTS_LOADED ? AIRPORTS.length.toLocaleString() : '7,060'}<span class="unit">airports</span></div>
+          <div class="metric-desc">Every IATA-coded airport, six continents</div>
         </div>
         <div class="metric">
           <div class="metric-label">Airlines covered</div>
@@ -2039,11 +2068,28 @@ function initSearchCard() {
       close();
       const term = q.trim().toLowerCase();
       if (!term) return;
-      const matches = AIRPORTS.filter(a =>
-        a.iata.toLowerCase().startsWith(term) ||
-        a.city.toLowerCase().includes(term) ||
-        a.country.toLowerCase().includes(term)
-      ).slice(0, 8);
+      // Ranked match: IATA exact > IATA prefix > city exact > city prefix > airport name prefix > city/name contains > country contains
+      const ranked = [];
+      for (const a of AIRPORTS) {
+        const ia = a.iata.toLowerCase();
+        const ci = a.city.toLowerCase();
+        const co = a.country.toLowerCase();
+        const nm = (a.name || '').toLowerCase();
+        let score = 0;
+        if (ia === term)                score = 100;
+        else if (ia.startsWith(term))   score = 90;
+        else if (ci === term)           score = 80;
+        else if (ci.startsWith(term))   score = 70;
+        else if (nm.startsWith(term))   score = 60;
+        else if (ci.includes(term))     score = 50;
+        else if (nm.includes(term))     score = 40;
+        else if (co.startsWith(term))   score = 30;
+        else if (co.includes(term))     score = 20;
+        else continue;
+        ranked.push({ a, score });
+      }
+      ranked.sort((x, y) => y.score - x.score);
+      const matches = ranked.slice(0, 8).map(r => r.a);
       if (!matches.length) return;
       acBox = document.createElement('div');
       acBox.className = 'ac';
@@ -2258,6 +2304,9 @@ document.addEventListener('touchend', e => {
 /* ---------- Init ---------- */
 window.addEventListener('hashchange', render);
 window.addEventListener('DOMContentLoaded', () => {
+  // Kick off full airports fetch immediately (non-blocking; ~517KB)
+  loadFullAirports();
+
   // Restore search from URL params if any
   const { path, params } = parseHash();
   if (path === '/results' && params.get('from') && params.get('to')) {
@@ -2277,7 +2326,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // expose for debugging
-window.ATLAS = { STATE, render, runSearch, AIRPORTS, AIRLINES };
+window.ATLAS = { STATE, render, runSearch, get AIRPORTS(){return AIRPORTS;}, AIRLINES };
 
 })();
 </script>
