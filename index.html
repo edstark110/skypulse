@@ -15,22 +15,26 @@
      ============================================================ */
 
   :root {
-    --bg:        #F4F2EC;
-    --paper:     #FFFFFF;
-    --ink:       #1A1814;
-    --ink-2:     #4A4640;
-    --ink-3:     #8A857C;
-    --accent:    #B8956A;
-    --accent-2:  #8A6C45;
-    --line:      rgba(26, 24, 20, 0.08);
-    --line-2:    rgba(26, 24, 20, 0.16);
-    --good:      #2F7D4F;
-    --warn:      #B8703A;
-    --bad:       #A4413E;
-    --shadow-1:  0 1px 2px rgba(26,24,20,0.04), 0 0 0 1px rgba(26,24,20,0.04);
-    --shadow-2:  0 4px 16px rgba(26,24,20,0.06), 0 0 0 1px rgba(26,24,20,0.05);
-    --radius:    10px;
-    --radius-sm: 6px;
+    --bg:        #0A0A0A;
+    --bg-2:      #0F0F0F;
+    --paper:     #141414;
+    --paper-2:   #1A1A1A;
+    --ink:       #F5F4EF;
+    --ink-2:     #B0ABA0;
+    --ink-3:     #6E6A60;
+    --accent:    #C9A66B;
+    --accent-2:  #E2C089;
+    --accent-deep:#8B7148;
+    --line:      rgba(245, 244, 239, 0.08);
+    --line-2:    rgba(245, 244, 239, 0.16);
+    --good:      #6AC192;
+    --warn:      #E0A26B;
+    --bad:       #D86F6C;
+    --shadow-1:  0 1px 2px rgba(0,0,0,0.5), 0 0 0 1px rgba(245,244,239,0.04);
+    --shadow-2:  0 12px 36px rgba(0,0,0,0.45), 0 0 0 1px rgba(245,244,239,0.06);
+    --shadow-glow: 0 0 60px rgba(201, 166, 107, 0.08);
+    --radius:    14px;
+    --radius-sm: 8px;
     --serif:     'Fraunces', Georgia, serif;
     --sans:      'Source Sans 3', system-ui, -apple-system, sans-serif;
     --mono:      'JetBrains Mono', ui-monospace, monospace;
@@ -60,51 +64,116 @@
   /* ===== Header ===== */
   header.site {
     position: sticky; top: 0; z-index: 50;
-    background: rgba(244, 242, 236, 0.86);
-    backdrop-filter: saturate(140%) blur(12px);
-    -webkit-backdrop-filter: saturate(140%) blur(12px);
+    background: rgba(10, 10, 10, 0.78);
+    backdrop-filter: saturate(140%) blur(14px);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
     border-bottom: 1px solid var(--line);
   }
   .nav {
     display: flex; align-items: center; justify-content: space-between;
-    height: 64px;
+    height: 72px;
   }
   .brand {
     font-family: var(--serif);
     font-weight: 500;
-    font-size: 22px;
-    letter-spacing: 0.02em;
+    font-size: 20px;
+    letter-spacing: 0.04em;
     color: var(--ink);
+    text-transform: uppercase;
   }
   .brand-mark {
     display: inline-block;
-    width: 8px; height: 8px;
+    width: 6px; height: 6px;
     background: var(--accent);
     border-radius: 50%;
     margin-right: 10px;
     vertical-align: middle;
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 0 12px rgba(201, 166, 107, 0.6);
   }
   .nav-links {
-    display: flex; gap: 28px;
-    font-size: 14px;
+    display: flex; gap: 32px; align-items: center;
+    font-size: 13px;
     color: var(--ink-2);
+    letter-spacing: 0.02em;
   }
   .nav-links a {
     padding: 6px 0;
     border-bottom: 1px solid transparent;
-    transition: color .15s ease, border-color .15s ease;
+    transition: color .2s ease, border-color .2s ease;
   }
   .nav-links a:hover { color: var(--ink); }
   .nav-links a.active {
     color: var(--ink);
     border-bottom-color: var(--accent);
   }
+  .nav-cta {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    border: none !important;
+    transition: all .2s ease;
+  }
+  .nav-cta:hover {
+    background: var(--accent);
+    color: var(--bg);
+    border: none !important;
+  }
 
   /* ===== Hero ===== */
   .hero {
-    padding: 72px 0 32px;
+    position: relative;
+    padding: 96px 0 56px;
+    overflow: hidden;
   }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: -100px -100px auto auto;
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(201, 166, 107, 0.10), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: auto auto -200px -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(201, 166, 107, 0.06), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero > * { position: relative; z-index: 1; }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px 7px 11px;
+    background: rgba(245, 244, 239, 0.04);
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-2);
+    margin-bottom: 28px;
+  }
+  .status-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(0.9); }
+  }
+
   .eyebrow {
     font-family: var(--mono);
     font-size: 11px;
@@ -116,23 +185,27 @@
   .headline {
     font-family: var(--serif);
     font-weight: 400;
-    font-size: clamp(40px, 7vw, 84px);
-    line-height: 1.02;
-    letter-spacing: -0.025em;
+    font-size: clamp(48px, 8.5vw, 112px);
+    line-height: 0.96;
+    letter-spacing: -0.035em;
     color: var(--ink);
     max-width: 14ch;
-    margin-bottom: 20px;
+    margin-bottom: 28px;
   }
   .headline em {
     font-style: italic;
     color: var(--accent-2);
   }
   .lede {
-    max-width: 56ch;
-    font-size: 18px;
+    max-width: 58ch;
+    font-size: 19px;
     line-height: 1.55;
     color: var(--ink-2);
-    margin-bottom: 40px;
+    margin-bottom: 36px;
+  }
+  .hero-ctas {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 56px;
   }
 
   /* ===== Search card ===== */
@@ -140,24 +213,24 @@
     background: var(--paper);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 20px;
+    padding: 24px;
     box-shadow: var(--shadow-2);
   }
   .trip-type {
     display: flex; gap: 4px;
-    background: var(--bg);
+    background: var(--bg-2);
     border: 1px solid var(--line);
     padding: 3px;
     border-radius: 999px;
     width: fit-content;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
   }
   .trip-type button {
-    padding: 6px 16px;
+    padding: 7px 18px;
     font-size: 13px;
     color: var(--ink-2);
     border-radius: 999px;
-    transition: all .15s ease;
+    transition: all .2s ease;
   }
   .trip-type button.active {
     background: var(--ink);
@@ -175,15 +248,16 @@
   }
   .field {
     position: relative;
-    background: var(--paper);
+    background: var(--bg-2);
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    transition: border-color .15s ease, box-shadow .15s ease;
+    padding: 11px 14px;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
   }
   .field:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(184, 149, 106, 0.12);
+    background: var(--paper-2);
+    box-shadow: 0 0 0 3px rgba(201, 166, 107, 0.10);
   }
   .field label {
     display: block;
@@ -214,10 +288,10 @@
 
   .ac {
     position: absolute;
-    top: calc(100% + 4px);
+    top: calc(100% + 6px);
     left: 0; right: 0;
-    background: var(--paper);
-    border: 1px solid var(--line);
+    background: var(--paper-2);
+    border: 1px solid var(--line-2);
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-2);
     z-index: 20;
@@ -225,13 +299,13 @@
     overflow-y: auto;
   }
   .ac-item {
-    padding: 10px 12px;
+    padding: 11px 14px;
     cursor: pointer;
     border-bottom: 1px solid var(--line);
     display: flex; align-items: baseline; gap: 10px;
   }
   .ac-item:last-child { border-bottom: none; }
-  .ac-item:hover, .ac-item.active { background: var(--bg); }
+  .ac-item:hover, .ac-item.active { background: rgba(245, 244, 239, 0.04); }
   .ac-iata {
     font-family: var(--mono);
     font-size: 11px;
@@ -245,87 +319,331 @@
   .btn {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 8px;
-    padding: 12px 20px;
-    border-radius: var(--radius-sm);
+    padding: 14px 24px;
+    border-radius: 999px;
     font-size: 14px;
     font-weight: 500;
-    transition: all .15s ease;
+    transition: all .2s ease;
     background: var(--ink);
     color: var(--bg);
     white-space: nowrap;
+    border: 1px solid var(--ink);
   }
-  .btn:hover { background: var(--accent-2); }
+  .btn:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-primary {
-    padding: 14px 22px;
+    padding: 16px 28px;
     font-size: 15px;
   }
   .btn-ghost {
     background: transparent;
-    color: var(--ink-2);
-    border: 1px solid var(--line);
+    color: var(--ink);
+    border: 1px solid var(--line-2);
   }
-  .btn-ghost:hover { background: var(--paper); color: var(--ink); border-color: var(--line-2); }
+  .btn-ghost:hover { background: rgba(245, 244, 239, 0.05); color: var(--ink); border-color: var(--ink-2); }
   .btn-search {
     align-self: stretch;
     background: var(--accent);
-    color: var(--paper);
-    padding: 0 24px;
+    color: var(--bg);
+    padding: 0 28px;
     font-weight: 600;
+    border-color: var(--accent);
+    border-radius: var(--radius-sm);
   }
-  .btn-search:hover { background: var(--accent-2); }
+  .btn-search:hover { background: var(--accent-2); border-color: var(--accent-2); color: var(--bg); }
+  .btn-arrow::after {
+    content: '→';
+    margin-left: 4px;
+    transition: transform .2s ease;
+  }
+  .btn:hover .btn-arrow::after,
+  .btn-arrow:hover::after { transform: translateX(3px); }
 
-  /* ===== Principles (homepage) ===== */
-  .principles {
-    padding: 64px 0 96px;
+  /* ===== Section base ===== */
+  .section {
+    padding: 96px 0;
     border-top: 1px solid var(--line);
-    margin-top: 64px;
   }
-  .principles-title {
+  .section-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 16px;
+  }
+  .section-title {
     font-family: var(--serif);
-    font-size: 32px;
+    font-size: clamp(32px, 4.5vw, 56px);
     font-weight: 400;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
     color: var(--ink);
-    margin-bottom: 32px;
+    max-width: 18ch;
+    margin-bottom: 48px;
   }
-  .principle-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 32px;
-  }
-  .principle {
+  .section-title em { font-style: italic; color: var(--accent-2); }
+
+  /* ===== Airlines marquee ===== */
+  .marquee {
+    overflow: hidden;
     border-top: 1px solid var(--line);
-    padding-top: 16px;
+    border-bottom: 1px solid var(--line);
+    padding: 22px 0;
+    background: var(--bg-2);
+    position: relative;
   }
-  .principle .num {
+  .marquee::before, .marquee::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 120px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .marquee::before {
+    left: 0;
+    background: linear-gradient(to right, var(--bg-2), transparent);
+  }
+  .marquee::after {
+    right: 0;
+    background: linear-gradient(to left, var(--bg-2), transparent);
+  }
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    gap: 64px;
+    animation: marquee 50s linear infinite;
+  }
+  .marquee-item {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--ink-2);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .marquee-item .code {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ===== Capabilities grid ===== */
+  .capabilities {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .cap-card {
+    position: relative;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 36px 32px;
+    min-height: 280px;
+    display: flex; flex-direction: column;
+    transition: border-color .25s ease, transform .25s ease, background .25s ease;
+    overflow: hidden;
+  }
+  .cap-card::before {
+    content: '';
+    position: absolute;
+    inset: auto -50% -50% auto;
+    width: 60%;
+    height: 60%;
+    background: radial-gradient(circle, rgba(201, 166, 107, 0.12), transparent 70%);
+    opacity: 0;
+    transition: opacity .35s ease;
+    pointer-events: none;
+  }
+  .cap-card:hover {
+    border-color: var(--line-2);
+    transform: translateY(-2px);
+    background: var(--paper-2);
+  }
+  .cap-card:hover::before { opacity: 1; }
+  .cap-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    background: rgba(201, 166, 107, 0.10);
+    border: 1px solid rgba(201, 166, 107, 0.25);
+    display: grid; place-items: center;
+    color: var(--accent);
+    font-family: var(--serif);
+    font-size: 22px;
+    margin-bottom: 28px;
+  }
+  .cap-num {
     font-family: var(--mono);
     font-size: 11px;
     color: var(--ink-3);
     letter-spacing: 0.12em;
     margin-bottom: 12px;
   }
-  .principle h3 {
+  .cap-title {
     font-family: var(--serif);
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 400;
+    letter-spacing: -0.015em;
     color: var(--ink);
-    margin-bottom: 8px;
-    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+    line-height: 1.15;
   }
-  .principle p {
+  .cap-desc {
     color: var(--ink-2);
     font-size: 15px;
     line-height: 1.6;
+    flex: 1;
+  }
+
+  /* ===== Featured routes ===== */
+  .routes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .route-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    text-align: left;
+    cursor: pointer;
+    transition: all .25s ease;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 24px;
+    width: 100%;
+  }
+  .route-card:hover {
+    border-color: var(--accent);
+    background: var(--paper-2);
+    transform: translateX(2px);
+  }
+  .route-card .route-pair {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+  }
+  .route-card .route-pair .iata {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    margin-left: 6px;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+  }
+  .route-card .route-meta {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-top: 4px;
+  }
+  .route-card .route-arrow {
+    color: var(--accent);
+    font-size: 22px;
+    transition: transform .25s ease;
+  }
+  .route-card:hover .route-arrow { transform: translateX(4px); }
+
+  /* ===== Coverage metrics ===== */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .metric {
+    padding: 48px 32px;
+    text-align: center;
+    border-right: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .metric:last-child { border-right: none; }
+  .metric-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .metric-value {
+    font-family: var(--serif);
+    font-size: clamp(48px, 6vw, 84px);
+    font-weight: 400;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .metric-value .unit {
+    font-size: 0.45em;
+    color: var(--accent);
+    letter-spacing: 0;
+    margin-left: 4px;
+  }
+  .metric-desc {
+    font-size: 13px;
+    color: var(--ink-2);
+    margin-top: 14px;
+  }
+
+  /* ===== CTA banner ===== */
+  .cta-banner {
+    text-align: center;
+    padding: 96px 32px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--paper), var(--paper-2));
+    margin-bottom: 96px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-banner::before {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background: radial-gradient(circle at center, rgba(201, 166, 107, 0.08), transparent 60%);
+    pointer-events: none;
+  }
+  .cta-banner > * { position: relative; }
+  .cta-banner h2 {
+    font-family: var(--serif);
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin-bottom: 16px;
+    line-height: 1.05;
+  }
+  .cta-banner h2 em { font-style: italic; color: var(--accent-2); }
+  .cta-banner p {
+    font-size: 17px;
+    color: var(--ink-2);
+    margin-bottom: 32px;
+    max-width: 48ch;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   /* ===== Results page ===== */
   .results-bar {
-    background: var(--paper);
+    background: rgba(10, 10, 10, 0.86);
+    backdrop-filter: saturate(140%) blur(14px);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
     border-bottom: 1px solid var(--line);
-    padding: 14px 0;
+    padding: 16px 0;
     position: sticky;
-    top: 64px;
+    top: 72px;
     z-index: 40;
   }
   .results-bar-inner {
@@ -348,22 +666,22 @@
 
   .sort-tabs {
     display: flex; gap: 4px;
-    background: var(--bg);
+    background: var(--bg-2);
     border: 1px solid var(--line);
     padding: 3px;
     border-radius: 999px;
   }
   .sort-tabs button {
-    padding: 6px 14px;
+    padding: 7px 16px;
     font-size: 13px;
     color: var(--ink-2);
     border-radius: 999px;
-    transition: all .15s ease;
+    transition: all .2s ease;
   }
   .sort-tabs button.active {
-    background: var(--paper);
-    color: var(--ink);
-    box-shadow: var(--shadow-1);
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 500;
   }
 
   .results-layout {
@@ -519,16 +837,17 @@
     min-width: 140px;
   }
   .quality-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 10px;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 12px;
     border-radius: 999px;
     font-size: 11px;
     font-family: var(--mono);
-    background: var(--bg);
+    background: var(--bg-2);
     border: 1px solid var(--line);
     color: var(--ink-2);
     width: fit-content;
     margin-bottom: 8px;
+    letter-spacing: 0.04em;
   }
   .quality-dot {
     width: 6px; height: 6px;
@@ -579,8 +898,9 @@
     font-size: 12px;
     font-family: var(--mono);
     color: var(--warn);
-    padding: 6px 10px;
-    background: rgba(184, 112, 58, 0.06);
+    padding: 7px 12px;
+    background: rgba(224, 162, 107, 0.08);
+    border: 1px solid rgba(224, 162, 107, 0.18);
     border-radius: var(--radius-sm);
     text-align: center;
   }
@@ -589,8 +909,9 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
-    padding: 14px;
-    background: var(--bg);
+    padding: 18px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     margin-bottom: 18px;
   }
@@ -669,11 +990,63 @@
   /* ===== Footer ===== */
   footer.site {
     border-top: 1px solid var(--line);
-    padding: 28px 0 56px;
+    padding: 56px 0 64px;
     color: var(--ink-3);
     font-size: 13px;
   }
-  footer.site p + p { margin-top: 6px; font-style: italic; font-family: var(--serif); color: var(--ink-3); }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 48px;
+    margin-bottom: 48px;
+  }
+  .footer-brand {
+    font-family: var(--serif);
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .footer-tag {
+    color: var(--ink-2);
+    font-size: 14px;
+    font-style: italic;
+    font-family: var(--serif);
+    max-width: 36ch;
+    line-height: 1.5;
+  }
+  .footer-col h5 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 14px;
+    font-weight: 500;
+  }
+  .footer-col a {
+    display: block;
+    color: var(--ink-2);
+    font-size: 14px;
+    padding: 5px 0;
+    transition: color .2s ease;
+  }
+  .footer-col a:hover { color: var(--ink); }
+  .footer-bottom {
+    border-top: 1px solid var(--line);
+    padding-top: 24px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    color: var(--ink-3);
+  }
+  .footer-bottom em {
+    font-style: italic;
+    font-family: var(--serif);
+  }
 
   /* ===== Toast ===== */
   .toast {
@@ -698,7 +1071,14 @@
 
   /* ===== Responsive ===== */
   @media (max-width: 900px) {
-    .principle-grid { grid-template-columns: 1fr; gap: 16px; }
+    .nav-links { gap: 18px; }
+    .nav-links a:not(.nav-cta) { display: none; }
+    .capabilities { grid-template-columns: 1fr; }
+    .routes-grid { grid-template-columns: 1fr; }
+    .metrics { grid-template-columns: 1fr; }
+    .metric { border-right: none; border-bottom: 1px solid var(--line); }
+    .metric:last-child { border-bottom: none; }
+    .footer-grid { grid-template-columns: 1fr; gap: 32px; }
     .results-layout { grid-template-columns: 1fr; }
     .filter-rail { position: static; max-height: none; }
     .search-row,
@@ -717,6 +1097,7 @@
     .result-actions { flex-direction: row; }
     .quality-breakdown { grid-template-columns: repeat(2, 1fr); }
     .qb-item { border-right: none; padding-right: 0; }
+    .marquee-item { font-size: 18px; }
   }
 </style>
 </head>
@@ -727,7 +1108,9 @@
     <a href="#/" class="brand"><span class="brand-mark"></span>ATLAS</a>
     <nav class="nav-links">
       <a href="#/" data-route="home">Flights</a>
+      <a href="#routes">Routes</a>
       <a href="#/trips" data-route="trips">Trips</a>
+      <a href="#search" class="nav-cta">Search now</a>
     </nav>
   </div>
 </header>
@@ -736,8 +1119,29 @@
 
 <footer class="site">
   <div class="wrap">
-    <p>ATLAS · Flight intelligence</p>
-    <p>Demo data for routing and pricing. Booking links open Google Flights for live availability.</p>
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand"><span class="brand-mark"></span>ATLAS</div>
+        <div class="footer-tag">Precision instruments for flight comparison.
+          Built for travelers who want clarity, not clutter.</div>
+      </div>
+      <div class="footer-col">
+        <h5>Product</h5>
+        <a href="#/">Search flights</a>
+        <a href="#/trips">Saved trips</a>
+        <a href="#routes">Featured routes</a>
+        <a href="#capabilities">How it works</a>
+      </div>
+      <div class="footer-col">
+        <h5>About</h5>
+        <a href="https://github.com/edstark110/skypulse" target="_blank" rel="noopener">Source</a>
+        <a href="#search">Get started</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>ATLAS · Flight intelligence · 2026</span>
+      <em>Demo data for routing and pricing. Booking links open Google Flights for live availability.</em>
+    </div>
   </div>
 </footer>
 
@@ -1142,6 +1546,15 @@ function bookingUrl(query) {
 }
 
 /* ---------- Views ---------- */
+const FEATURED_ROUTES = [
+  { from: 'DXB', to: 'LHR', label: 'Most searched · Middle East ↔ Europe' },
+  { from: 'JFK', to: 'LHR', label: 'Transatlantic · daily nonstop' },
+  { from: 'SIN', to: 'NRT', label: 'Asia premium corridor' },
+  { from: 'DXB', to: 'JFK', label: 'Long-haul · 14h direct' },
+  { from: 'LAX', to: 'SYD', label: 'Pacific · ultra long-haul' },
+  { from: 'CDG', to: 'JFK', label: 'Paris ↔ New York' },
+];
+
 function viewHome() {
   const q = STATE.query || {
     from: '', to: '',
@@ -1151,36 +1564,125 @@ function viewHome() {
     cabin: 'Economy',
     tripType: 'round',
   };
+
+  const marqueeAirlines = [...AIRLINES, ...AIRLINES]; // duplicate for seamless loop
+
   return `
     <section class="hero wrap">
-      <div class="eyebrow">ATLAS · Flight Intelligence</div>
+      <div class="status-pill">
+        <span class="dot"></span>
+        ATLAS · ${AIRPORTS.length} destinations · ${AIRLINES.length} airlines
+      </div>
       <h1 class="headline">Find the <em>right</em> flight.</h1>
-      <p class="lede">Compare prices, durations, and journey quality across airlines.
-        One search — every option, ranked clearly.</p>
-      ${searchCard(q)}
+      <p class="lede">Precision instruments for flight comparison. One search,
+        every option — ranked by price, duration, and journey quality.
+        No fake tabs. No buried filters.</p>
+      <div class="hero-ctas">
+        <a href="#search" class="btn btn-primary"><span class="btn-arrow">Start searching</span></a>
+        <a href="#capabilities" class="btn btn-ghost">How it works</a>
+      </div>
+      <div id="search">
+        ${searchCard(q)}
+      </div>
     </section>
 
-    <section class="principles wrap">
-      <h2 class="principles-title">What ATLAS does</h2>
-      <div class="principle-grid">
-        <article class="principle">
-          <div class="num">01</div>
-          <h3>Real comparison</h3>
-          <p>Side-by-side ranking by price, duration, and quality.
-             No buried filters. No paid placement.</p>
+    <section class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        ${marqueeAirlines.map(a => `
+          <span class="marquee-item">
+            <span class="code">${a.code}</span>${a.name}
+          </span>
+        `).join('')}
+      </div>
+    </section>
+
+    <section class="section wrap" id="capabilities">
+      <div class="section-eyebrow">Capabilities</div>
+      <h2 class="section-title">Every option, ranked <em>clearly</em>.</h2>
+      <div class="capabilities">
+        <article class="cap-card">
+          <div class="cap-icon">◆</div>
+          <div class="cap-num">01 · Search</div>
+          <h3 class="cap-title">Multi-airline search</h3>
+          <p class="cap-desc">${AIRLINES.length} airlines across ${AIRPORTS.length} destinations.
+            Origin, destination, dates, cabin — and you see every viable option in one view.</p>
         </article>
-        <article class="principle">
-          <div class="num">02</div>
-          <h3>Journey quality</h3>
-          <p>Each option is scored on stops, layover time,
-             total duration overhead, and time-of-day comfort.</p>
+        <article class="cap-card">
+          <div class="cap-icon">▲</div>
+          <div class="cap-num">02 · Compare</div>
+          <h3 class="cap-title">Best, cheapest, fastest</h3>
+          <p class="cap-desc">Three sort modes. Filter by stops, airline, departure window, max price.
+            Side-by-side, no paid placement, no buried results.</p>
         </article>
-        <article class="principle">
-          <div class="num">03</div>
-          <h3>Trusted booking</h3>
-          <p>Pick the option you trust, then book directly via
-             Google Flights with live prices and seat availability.</p>
+        <article class="cap-card">
+          <div class="cap-icon">●</div>
+          <div class="cap-num">03 · Understand</div>
+          <h3 class="cap-title">Journey quality scoring</h3>
+          <p class="cap-desc">Each option rated on stops, duration overhead vs direct,
+            total layover time, and time-of-day comfort. The numbers behind the price.</p>
         </article>
+        <article class="cap-card">
+          <div class="cap-icon">→</div>
+          <div class="cap-num">04 · Book</div>
+          <h3 class="cap-title">Trusted booking handoff</h3>
+          <p class="cap-desc">Pick what you trust. We hand off to Google Flights for live prices
+            and real seat availability. Never trapped on a third-party rail.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section wrap" id="routes">
+      <div class="section-eyebrow">Featured routes</div>
+      <h2 class="section-title">Pick a route. <em>Compare</em> in one click.</h2>
+      <div class="routes-grid">
+        ${FEATURED_ROUTES.map(r => {
+          const fromA = AIRPORT_BY_IATA[r.from];
+          const toA = AIRPORT_BY_IATA[r.to];
+          return `
+            <button class="route-card" data-route-from="${r.from}" data-route-to="${r.to}">
+              <div>
+                <div class="route-pair">
+                  ${fromA.city} <span class="iata">${r.from}</span>
+                  &nbsp;→&nbsp;
+                  ${toA.city} <span class="iata">${r.to}</span>
+                </div>
+                <div class="route-meta">${r.label}</div>
+              </div>
+              <span class="route-arrow">→</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </section>
+
+    <section class="section wrap" id="coverage">
+      <div class="section-eyebrow">Coverage</div>
+      <h2 class="section-title">Honest numbers. <em>Real</em> instruments.</h2>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label">Destinations</div>
+          <div class="metric-value">${AIRPORTS.length}<span class="unit">cities</span></div>
+          <div class="metric-desc">Major hubs across six continents</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Airlines covered</div>
+          <div class="metric-value">${AIRLINES.length}<span class="unit">carriers</span></div>
+          <div class="metric-desc">From legacy flag carriers to long-haul premium</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Quality factors</div>
+          <div class="metric-value">4<span class="unit">signals</span></div>
+          <div class="metric-desc">Stops · overhead · layover · time-of-day</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <div class="cta-banner">
+        <h2>Ready to <em>find</em> your flight?</h2>
+        <p>One search. Every option. Ranked clearly.
+          No fake tabs, no placeholders — just the instruments you need.</p>
+        <a href="#search" class="btn btn-primary"><span class="btn-arrow">Start searching</span></a>
       </div>
     </section>
   `;
@@ -1689,6 +2191,24 @@ document.addEventListener('click', e => {
       if (trip) runSearch(trip.query);
       return;
     }
+  }
+
+  // Featured route card click → prefill + scroll to search
+  const routeCard = e.target.closest('[data-route-from]');
+  if (routeCard) {
+    const from = routeCard.dataset.routeFrom;
+    const to = routeCard.dataset.routeTo;
+    const fromInput = document.querySelector('#fld-from');
+    const toInput = document.querySelector('#fld-to');
+    if (fromInput && toInput) {
+      fromInput.value = airportLabel(from);
+      fromInput.dataset.iata = from;
+      toInput.value = airportLabel(to);
+      toInput.dataset.iata = to;
+      document.getElementById('search')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      toast(`${from} → ${to} loaded · pick dates and search`);
+    }
+    return;
   }
 });
 
