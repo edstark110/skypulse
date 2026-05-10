@@ -14407,6 +14407,542 @@ document.addEventListener('DOMContentLoaded', function () {
   setTimeout(buildWelcomeCard, 400);
 });
 
+/* =================================================================
+   ✦ DOSS-INSPIRED HOMEPAGE REBUILD
+   Adopts DOSS structure: promo banner · hero+tabs · feature grid ·
+   module grid · dark CTA · footer. Gated to pre-search state.
+   ================================================================= */
+
+const ATLAS_PROMO_KEY = 'atlas-promo-dismissed';
+
+const HERO_TABS = [
+  { key: 'predict',  label: 'Predict',  sub: 'fare moves',
+    body: 'A confidence engine reads days-to-departure, fuel signal, demand pressure, and cross-source volatility. Verdict: BUY NOW · WAIT · MONITOR — every factor cited.' },
+  { key: 'analyze',  label: 'Analyze',  sub: 'every journey',
+    body: 'Aircraft family · seat quality · cabin pressure · layover quality · hub reliability · weather risk. The full picture before you book.' },
+  { key: 'compare',  label: 'Compare',  sub: 'all sources',
+    body: '14 booking aggregators side-by-side. Sorted by price. Each link goes to that aggregator\'s actual results page.' },
+  { key: 'track',    label: 'Track',    sub: 'price moves',
+    body: 'Persistent fare tracking per route. Notifications when prices drop or rise outside typical bands.' },
+  { key: 'optimize', label: 'Optimize', sub: 'route choice',
+    body: 'Cheapest. Fastest. Smartest. Three answers — one decision. Route DNA shows comfort, reliability, sleep, stress, delay, and value at a glance.' },
+  { key: 'decide',   label: 'Decide',   sub: 'with confidence',
+    body: 'Every recommendation explainable. No black boxes. ATLAS shows you the math — you make the call.' }
+];
+
+const FEATURE_ROWS = [
+  { num: '01', icon: '◉', title: 'Predict before prices rise',
+    sub: 'Fare confidence engine cites every factor.',
+    desc: 'Days to departure, fuel signal, demand pressure, cross-source volatility, booking-window optimality. Five inputs in. One verdict out — with reasoning.' },
+  { num: '02', icon: '◇', title: 'Choose smarter routes',
+    sub: 'Not all cheap flights are good flights.',
+    desc: 'Live ATC severity. Hub quality. Aircraft family. Layover comfort. Climate-aware weather. Per-flight Route DNA compresses six dimensions into one glance.' },
+  { num: '03', icon: '✓', title: 'Decide with confidence',
+    sub: 'Every recommendation explainable.',
+    desc: 'No black boxes. No fake AI. The strategist proactively suggests date shifts and hub alternatives. Each suggestion grounded in real data you can audit.' }
+];
+
+const MODULE_GRID = [
+  { name: 'Fare Confidence',  glyph: '◉', desc: 'BUY NOW · WAIT · MONITOR' },
+  { name: 'Route DNA',        glyph: '◈', desc: '6-dimension genome bar' },
+  { name: 'Aircraft Intel',   glyph: '✈', desc: 'Family · seats · pressure' },
+  { name: 'Airport Intel',    glyph: '◎', desc: 'Lounges · transit · congestion' },
+  { name: 'Climate Weather',  glyph: '☀', desc: 'Per-airport real climate' },
+  { name: 'ATC Severity',     glyph: '🛰', desc: 'Live airspace status' },
+  { name: 'Source Compare',   glyph: '⊞', desc: '14 aggregators side-by-side' },
+  { name: 'Trip Strategist',  glyph: '◆', desc: 'Proactive savings paths' }
+];
+
+function buildPromoBanner() {
+  if (document.getElementById('atlasPromo')) return;
+  if (localStorage.getItem(ATLAS_PROMO_KEY) === '1') return;
+  const bar = document.createElement('div');
+  bar.id = 'atlasPromo';
+  bar.className = 'a-promo';
+  bar.innerHTML =
+    '<div class="a-promo__inner">' +
+      '<span class="a-promo__text">ATLAS · Aviation intelligence in beta &nbsp; → &nbsp; Free during launch</span>' +
+      '<button class="a-promo__close" aria-label="Dismiss">×</button>' +
+    '</div>';
+  document.body.insertBefore(bar, document.body.firstChild);
+  bar.querySelector('.a-promo__close').addEventListener('click', function () {
+    bar.remove();
+    try { localStorage.setItem(ATLAS_PROMO_KEY, '1'); } catch (e) {}
+  });
+}
+
+function buildHomepageSections() {
+  if (document.getElementById('atlasHomepage')) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'atlasHomepage';
+  wrap.className = 'a-home';
+
+  /* HERO TABS section (sits above search) */
+  const heroTabsHtml =
+    '<section class="a-hero">' +
+      '<div class="a-container">' +
+        '<div class="a-hero__head">' +
+          '<h1 class="a-hero__title">Smarter flight decisions.</h1>' +
+          '<p class="a-hero__sub">An aviation intelligence platform built for travelers who think ahead. Predict fares. Analyze journeys. Decide with confidence.</p>' +
+        '</div>' +
+        '<div class="a-tabs" role="tablist">' +
+          HERO_TABS.map((t, i) =>
+            '<button class="a-tab' + (i === 0 ? ' a-tab--on' : '') + '" data-tab="' + t.key + '" role="tab">' +
+              '<span class="a-tab__label">' + t.label + '</span>' +
+              '<span class="a-tab__sub">' + t.sub + '</span>' +
+            '</button>'
+          ).join('') +
+        '</div>' +
+        '<div class="a-tabpanels">' +
+          HERO_TABS.map((t, i) =>
+            '<div class="a-tabpanel' + (i === 0 ? ' a-tabpanel--on' : '') + '" data-panel="' + t.key + '">' +
+              '<p class="a-tabpanel__body">' + t.body + '</p>' +
+            '</div>'
+          ).join('') +
+        '</div>' +
+      '</div>' +
+    '</section>';
+
+  /* 3-row FEATURE grid */
+  const featureGridHtml =
+    '<section class="a-features">' +
+      '<div class="a-container">' +
+        '<h2 class="a-section__title">Built for travelers who think ahead.</h2>' +
+        '<div class="a-features__rows">' +
+          FEATURE_ROWS.map(f =>
+            '<div class="a-features__row">' +
+              '<div class="a-features__lead">' +
+                '<div class="a-features__num">' + f.num + '</div>' +
+                '<div class="a-features__icon">' + f.icon + '</div>' +
+                '<div class="a-features__title">' + f.title + '</div>' +
+              '</div>' +
+              '<div class="a-features__divider" aria-hidden="true"></div>' +
+              '<div class="a-features__body">' +
+                '<div class="a-features__sub">' + f.sub + '</div>' +
+                '<p class="a-features__desc">' + f.desc + '</p>' +
+              '</div>' +
+            '</div>'
+          ).join('') +
+        '</div>' +
+      '</div>' +
+    '</section>';
+
+  /* MODULE grid */
+  const moduleGridHtml =
+    '<section class="a-modules">' +
+      '<div class="a-container">' +
+        '<div class="a-section__head">' +
+          '<h2 class="a-section__title">Modules for every decision.</h2>' +
+          '<p class="a-section__sub">Eight intelligence layers, working together. Adaptable per route.</p>' +
+        '</div>' +
+        '<div class="a-modules__grid">' +
+          MODULE_GRID.map(m =>
+            '<div class="a-modules__card">' +
+              '<div class="a-modules__glyph">' + m.glyph + '</div>' +
+              '<div class="a-modules__name">' + m.name + '</div>' +
+              '<div class="a-modules__desc">' + m.desc + '</div>' +
+            '</div>'
+          ).join('') +
+        '</div>' +
+      '</div>' +
+    '</section>';
+
+  /* Dark CTA banner */
+  const ctaHtml =
+    '<section class="a-cta">' +
+      '<div class="a-container">' +
+        '<h2 class="a-cta__title">Upgrade your travel decisions.</h2>' +
+        '<p class="a-cta__sub">Fast to read. Easy to trust. Built to scale with every route.</p>' +
+        '<button class="a-btn a-btn--lg a-btn--light" onclick="document.querySelector(\'#origin, [data-origin]\')?.focus()">Search a route ↓</button>' +
+      '</div>' +
+    '</section>';
+
+  /* Footer */
+  const footerHtml =
+    '<footer class="a-footer">' +
+      '<div class="a-container">' +
+        '<div class="a-footer__top">' +
+          '<div class="a-footer__brand">' +
+            '<div class="a-footer__logo">ATLAS</div>' +
+            '<p class="a-footer__tag">Aviation intelligence, decoded.</p>' +
+          '</div>' +
+          '<div class="a-footer__cols">' +
+            '<div class="a-footer__col">' +
+              '<div class="a-footer__h">Capabilities</div>' +
+              '<a class="a-footer__lnk">Fare Confidence</a>' +
+              '<a class="a-footer__lnk">Route DNA</a>' +
+              '<a class="a-footer__lnk">Aircraft Intel</a>' +
+              '<a class="a-footer__lnk">Airport Intel</a>' +
+            '</div>' +
+            '<div class="a-footer__col">' +
+              '<div class="a-footer__h">Modules</div>' +
+              '<a class="a-footer__lnk">Climate Weather</a>' +
+              '<a class="a-footer__lnk">ATC Severity</a>' +
+              '<a class="a-footer__lnk">Source Compare</a>' +
+              '<a class="a-footer__lnk">Trip Strategist</a>' +
+            '</div>' +
+            '<div class="a-footer__col">' +
+              '<div class="a-footer__h">About</div>' +
+              '<a class="a-footer__lnk" href="https://github.com/edstark110/skypulse" target="_blank" rel="noopener">GitHub</a>' +
+              '<a class="a-footer__lnk">Live status</a>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="a-footer__bottom">' +
+          '<div class="a-footer__copy">© ATLAS 2026 · All rights reserved</div>' +
+          '<div class="a-footer__legal">' +
+            'Estimates from public signals · Not live fares · No affiliate links' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</footer>';
+
+  wrap.innerHTML = heroTabsHtml + featureGridHtml + moduleGridHtml + ctaHtml + footerHtml;
+
+  /* Insert: hero tabs BEFORE the actual search hero, everything else AFTER */
+  const realHero = document.querySelector('section.hero');
+  if (realHero && realHero.parentNode) {
+    /* Split the wrapper: insert hero tabs section before real hero, rest after */
+    const heroSec = wrap.querySelector('.a-hero');
+    if (heroSec) realHero.parentNode.insertBefore(heroSec, realHero);
+    /* All remaining children appended after real hero */
+    while (wrap.firstChild) {
+      realHero.parentNode.insertBefore(wrap.firstChild, realHero.nextSibling);
+    }
+  } else {
+    document.body.appendChild(wrap);
+  }
+
+  /* Tab switching */
+  document.querySelectorAll('.a-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const k = btn.dataset.tab;
+      document.querySelectorAll('.a-tab').forEach(b => b.classList.toggle('a-tab--on', b.dataset.tab === k));
+      document.querySelectorAll('.a-tabpanel').forEach(p => p.classList.toggle('a-tabpanel--on', p.dataset.panel === k));
+    });
+  });
+}
+
+/* CSS — restrained, monochrome, premium */
+(function injectHomepageCss() {
+  if (document.getElementById('homepage-css')) return;
+  const css = `
+    :root {
+      --a-bg: #0a0b0f;
+      --a-bg-2: #0e1015;
+      --a-bg-light: #f6f5f2;
+      --a-text: #fff;
+      --a-text-mute: rgba(255,255,255,0.62);
+      --a-text-faint: rgba(255,255,255,0.42);
+      --a-border: rgba(255,255,255,0.08);
+      --a-border-strong: rgba(255,255,255,0.18);
+      --a-accent: #0a84ff;
+    }
+
+    /* Promo banner (top, sticky-feel) */
+    .a-promo {
+      background: linear-gradient(90deg, rgba(10,132,255,0.14), rgba(48,209,88,0.10));
+      border-bottom: 0.5px solid rgba(255,255,255,0.06);
+      padding: 0;
+    }
+    .a-promo__inner {
+      max-width: 1280px; margin: 0 auto;
+      padding: 8px 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .a-promo__text {
+      font: 600 12px/1.3 -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      letter-spacing: -0.005em;
+      color: rgba(255,255,255,0.88);
+    }
+    .a-promo__close {
+      background: none; border: none;
+      color: rgba(255,255,255,0.55);
+      font-size: 18px; line-height: 1;
+      padding: 4px 8px; cursor: pointer;
+    }
+    .a-promo__close:hover { color: #fff; }
+
+    /* Hide entire homepage scaffold post-search */
+    body[data-search-state="active"] #atlasHomepage,
+    body[data-search-state="active"] .a-hero,
+    body[data-search-state="active"] .a-features,
+    body[data-search-state="active"] .a-modules,
+    body[data-search-state="active"] .a-cta,
+    body[data-search-state="active"] .a-footer { display: none !important; }
+
+    /* Container (DOSS-style 1280 max) */
+    .a-container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+    /* Hero with tabs */
+    .a-hero {
+      padding: 48px 0 28px;
+      background: var(--a-bg);
+    }
+    .a-hero__head { text-align: center; max-width: 720px; margin: 0 auto 32px; }
+    .a-hero__title {
+      font: 800 clamp(36px, 6vw, 64px)/1.05 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.03em;
+      color: var(--a-text);
+      margin: 0 0 14px;
+    }
+    .a-hero__sub {
+      font: 500 16px/1.5 -apple-system, 'Inter', sans-serif;
+      color: var(--a-text-mute);
+      margin: 0;
+    }
+
+    /* Tabs (DOSS-style horizontal, dark) */
+    .a-tabs {
+      display: flex; flex-wrap: wrap; gap: 0;
+      border-top: 0.5px solid var(--a-border);
+      border-bottom: 0.5px dashed var(--a-border);
+      margin-bottom: 0;
+    }
+    .a-tab {
+      flex: 1 1 0; min-width: 140px;
+      padding: 18px 18px 16px;
+      background: transparent;
+      border: none;
+      border-right: 0.5px dashed var(--a-border);
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.18s ease;
+    }
+    .a-tab:last-child { border-right: none; }
+    .a-tab:hover { background: rgba(255,255,255,0.02); }
+    .a-tab--on { background: rgba(10,132,255,0.06); border-bottom: 2px solid var(--a-accent); margin-bottom: -1px; }
+    .a-tab__label {
+      display: block;
+      font: 700 14px/1.2 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.01em;
+      color: var(--a-text);
+    }
+    .a-tab__sub {
+      display: block;
+      margin-top: 4px;
+      font: 500 11px/1.3 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.04em;
+      color: var(--a-text-faint);
+    }
+    .a-tabpanels { padding: 24px 4px 4px; }
+    .a-tabpanel { display: none; }
+    .a-tabpanel--on { display: block; animation: aFade 0.32s cubic-bezier(0.16,1,0.3,1); }
+    @keyframes aFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .a-tabpanel__body {
+      font: 500 15px/1.55 -apple-system, 'Inter', sans-serif;
+      color: var(--a-text-mute);
+      max-width: 720px;
+      margin: 0;
+    }
+
+    /* Section common */
+    .a-section__head { text-align: center; max-width: 680px; margin: 0 auto 36px; }
+    .a-section__title {
+      font: 800 clamp(28px, 4vw, 42px)/1.15 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.025em;
+      color: var(--a-text);
+      margin: 0 0 12px;
+    }
+    .a-section__sub {
+      font: 500 15px/1.5 -apple-system, 'Inter', sans-serif;
+      color: var(--a-text-mute);
+      margin: 0;
+    }
+
+    /* Feature 3-row grid (DOSS ERP-style) */
+    .a-features {
+      padding: 80px 0 72px;
+      background: var(--a-bg);
+      border-top: 0.5px solid var(--a-border);
+    }
+    .a-features .a-section__title { text-align: center; margin: 0 auto 40px; max-width: 780px; }
+    .a-features__rows {
+      border-top: 0.5px solid var(--a-border);
+      border-bottom: 0.5px solid var(--a-border);
+    }
+    .a-features__row {
+      display: grid;
+      grid-template-columns: 1fr 1px 2fr;
+      gap: 28px;
+      padding: 32px 8px;
+      border-bottom: 0.5px dashed var(--a-border);
+      align-items: center;
+    }
+    .a-features__row:last-child { border-bottom: none; }
+    .a-features__lead { display: flex; flex-direction: column; gap: 14px; }
+    .a-features__num {
+      font: 700 11px/1 'JetBrains Mono', monospace;
+      letter-spacing: 0.18em;
+      color: var(--a-text-faint);
+    }
+    .a-features__icon {
+      font-size: 28px; line-height: 1;
+      color: var(--a-accent);
+    }
+    .a-features__title {
+      font: 700 24px/1.15 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.022em;
+      color: var(--a-text);
+    }
+    .a-features__divider { background: var(--a-border); }
+    .a-features__sub {
+      font: 700 17px/1.3 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.012em;
+      color: var(--a-text);
+      margin-bottom: 8px;
+    }
+    .a-features__desc {
+      font: 500 14px/1.6 -apple-system, 'Inter', sans-serif;
+      color: var(--a-text-mute);
+      margin: 0;
+    }
+
+    /* Module grid */
+    .a-modules { padding: 80px 0; background: var(--a-bg-2); border-top: 0.5px solid var(--a-border); }
+    .a-modules__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0;
+      border: 0.5px solid var(--a-border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .a-modules__card {
+      padding: 26px 22px 22px;
+      border-right: 0.5px dashed var(--a-border);
+      border-bottom: 0.5px dashed var(--a-border);
+      transition: background 0.18s ease;
+    }
+    .a-modules__card:hover { background: rgba(255,255,255,0.025); }
+    .a-modules__glyph { font-size: 26px; color: var(--a-accent); margin-bottom: 14px; }
+    .a-modules__name {
+      font: 700 15px/1.3 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.012em;
+      color: var(--a-text);
+      margin-bottom: 6px;
+    }
+    .a-modules__desc {
+      font: 500 12px/1.45 -apple-system, 'Inter', sans-serif;
+      color: var(--a-text-mute);
+    }
+
+    /* Dark CTA */
+    .a-cta {
+      padding: 64px 0;
+      background: #050608;
+      text-align: center;
+      border-top: 0.5px solid var(--a-border);
+      border-bottom: 0.5px solid var(--a-border);
+    }
+    .a-cta__title {
+      font: 800 clamp(28px, 4vw, 44px)/1.1 -apple-system, 'Inter', sans-serif;
+      letter-spacing: -0.025em;
+      color: var(--a-text);
+      margin: 0 0 12px;
+    }
+    .a-cta__sub {
+      font: 500 15px/1.5 'Inter', sans-serif;
+      color: var(--a-text-mute);
+      margin: 0 auto 24px;
+      max-width: 480px;
+    }
+    .a-btn {
+      display: inline-block;
+      font: 700 13px/1 'JetBrains Mono', ui-monospace, monospace;
+      letter-spacing: 0.10em;
+      padding: 14px 24px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 0.5px solid var(--a-border-strong);
+      transition: all 0.15s ease;
+    }
+    .a-btn--lg { padding: 16px 28px; font-size: 13px; }
+    .a-btn--light {
+      background: var(--a-text); color: #050608;
+      border-color: var(--a-text);
+    }
+    .a-btn--light:hover { background: #e5e5e5; transform: translateY(-1px); }
+
+    /* Footer */
+    .a-footer {
+      padding: 60px 0 40px;
+      background: var(--a-bg);
+    }
+    .a-footer__top {
+      display: grid;
+      grid-template-columns: minmax(200px, 1fr) 3fr;
+      gap: 60px;
+      padding-bottom: 36px;
+      border-bottom: 0.5px solid var(--a-border);
+      margin-bottom: 28px;
+    }
+    .a-footer__logo {
+      font: 900 22px/1 -apple-system, 'Inter', sans-serif;
+      letter-spacing: 0.18em;
+      background: linear-gradient(180deg, #fff, #c8ccd1);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .a-footer__tag {
+      font: 500 12px/1.4 'Inter', sans-serif;
+      color: var(--a-text-mute);
+      margin: 0;
+    }
+    .a-footer__cols {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+    }
+    .a-footer__h {
+      font: 700 11px/1 'JetBrains Mono', monospace;
+      letter-spacing: 0.14em;
+      color: var(--a-text);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+    .a-footer__lnk {
+      display: block;
+      font: 500 13px/1.3 'Inter', sans-serif;
+      color: var(--a-text-mute);
+      margin-bottom: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+    .a-footer__lnk:hover { color: var(--a-text); }
+    .a-footer__bottom {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+      font: 500 11px/1.3 'JetBrains Mono', monospace;
+      letter-spacing: 0.04em;
+      color: var(--a-text-faint);
+    }
+
+    /* Mobile */
+    @media (max-width: 760px) {
+      .a-features__row { grid-template-columns: 1fr; gap: 14px; padding: 24px 0; }
+      .a-features__divider { display: none; }
+      .a-footer__top { grid-template-columns: 1fr; gap: 32px; }
+      .a-footer__cols { grid-template-columns: 1fr 1fr; gap: 24px; }
+      .a-tab { min-width: 110px; padding: 14px 12px; }
+      .a-promo__inner { padding: 6px 16px; }
+      .a-promo__text { font-size: 11px; }
+    }
+  `;
+  const el = document.createElement('style');
+  el.id = 'homepage-css';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    buildPromoBanner();
+    buildHomepageSections();
+  }, 250);
+});
+
 function init() {
   bindUI();
   bindCurrencyPicker();
