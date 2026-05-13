@@ -8,7 +8,7 @@ import { todayISO } from '../lib/util.js';
 import { EASE } from '../lib/motion.js';
 import { CURRENCIES } from '../lib/util.js';
 
-export default function SearchBar({ compact = false, onFocus }) {
+export default function SearchBar({ compact = false }) {
   const query = useFlightStore(s => s.query);
   const setQuery = useFlightStore(s => s.setQuery);
   const runSearch = useFlightStore(s => s.runSearch);
@@ -35,7 +35,6 @@ export default function SearchBar({ compact = false, onFocus }) {
   return (
     <motion.form
       onSubmit={handleSubmit}
-      onFocusCapture={onFocus}
       className={`glass rounded-2xl shadow-[0_30px_80px_rgba(0,0,0,0.45)]
                   ${compact ? 'p-3' : 'p-5'} w-full`}
       initial={{ opacity: 0, y: 14 }}

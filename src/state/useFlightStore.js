@@ -29,7 +29,9 @@ function saveTrips(arr) { localStorage.setItem(TRIPS_KEY, JSON.stringify(arr)); 
 
 export const useFlightStore = create((set, get) => ({
   // === scene ===
-  scene: 'idle',                // idle | search | results | trips
+  // Only three scenes — no intermediate "search" state. The idle hero IS the
+  // search surface; transitioning away mid-click was destroying form state.
+  scene: 'idle',                // idle | results | trips
   setScene: (scene) => set({ scene }),
 
   // === query ===

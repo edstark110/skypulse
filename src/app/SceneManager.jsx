@@ -1,9 +1,10 @@
-// Scene orchestrator — fades between idle / search / results / trips.
+// Scene orchestrator — three scenes, no transitional "search" state.
+// (The idle hero IS the search surface; the prior intermediate scene was
+//  causing mid-click form unmount and a reset glitch.)
 
 import { AnimatePresence } from 'framer-motion';
 import { useFlightStore } from '../state/useFlightStore.js';
 import IdleScene from '../scenes/IdleScene.jsx';
-import SearchScene from '../scenes/SearchScene.jsx';
 import ResultsScene from '../scenes/ResultsScene.jsx';
 import TripsScene from '../scenes/TripsScene.jsx';
 
@@ -13,7 +14,6 @@ export default function SceneManager() {
   return (
     <AnimatePresence mode="wait">
       {scene === 'idle'    && <IdleScene    key="idle"    />}
-      {scene === 'search'  && <SearchScene  key="search"  />}
       {scene === 'results' && <ResultsScene key="results" />}
       {scene === 'trips'   && <TripsScene   key="trips"   />}
     </AnimatePresence>
