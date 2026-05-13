@@ -1,0 +1,27 @@
+{
+  "name": "atlas-flight-intelligence",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ATLAS — calm intelligence layer for global flight decisions",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "framer-motion": "^11.11.17",
+    "zustand": "^5.0.1",
+    "@studio-freight/lenis": "^1.0.42"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "vite": "^5.4.11"
+  }
+}

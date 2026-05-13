@@ -8,10 +8,10 @@
 *.backup
 *~
 
-# Node (server.js doesn't use deps but if you ever add)
+# Node
 node_modules/
-package-lock.json
 npm-debug.log*
+# package-lock.json is COMMITTED so Vercel reproduces exact installs
 
 # Vercel artifacts
 .vercel/

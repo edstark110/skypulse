@@ -1,73 +1,70 @@
-# SkyPulse
+# ATLAS
 
-**Real-time flight intelligence + price comparison · single-file architecture**
+A calm intelligence layer for global flight decisions.
+Compare by comfort, timing, weather, aircraft, and reliability — not just price.
 
-Live: **https://skypulse-omega.vercel.app**
+Live: <https://skypulse-omega.vercel.app>
 
-A self-contained 600 KB HTML app that delivers Apple-grade flight search, multi-source price comparison, climate-aware weather + ATC overlays, and a 7-agent intelligence panel that audits itself in real time.
+## Stack
 
----
-
-## Features
-
-- 🌐 Real geographic world map (d3-geo + topojson + world-atlas)
-- 🛫 220+ airports · 70+ airlines · 14 booking sources
-- 🤖 7-agent intelligence system: COMMAND · SENTINEL · ATLAS · FORGE · ORACLE · AEGIS · AURA
-- 📊 Live performance governor (FPS / memory / latency thresholds)
-- 🌦 Climate-aware weather with seasonal monsoon modeling
-- 🛰 ATC severity dots per airspace
-- 💰 SkyPulse Score Engine — market baseline + deviation commentary
-- ✈ Aircraft blueprints with anatomically-correct family geometry
-- 🪟 Comparison view in new tab — system fonts, no FOUT
-- 🗺 Single-file: no build step, no framework, deploys to any static host
-
-## Quick start
-
-```bash
-node server.js
-# SkyPulse running at http://localhost:8080
-```
-
-The Node server is just a 30-line static file server. The whole app is `index.html`.
-
-## Deploy
-
-```bash
-# Vercel (one command)
-vercel deploy --prod
-
-# Or drag-and-drop index.html to:
-#   pages.cloudflare.com · vercel.com · netlify.com/drop
-```
+- **React 18** + **Vite 5** + **Tailwind CSS**
+- **Zustand** for state · **Framer Motion** for motion · **Lenis** for smooth scroll
+- Deterministic pricing + 7,060 IATA airports (lazy-loaded from `public/airports.json`)
+- Booking handoff via Google Flights deep links
 
 ## Architecture
 
-| Module | What it does |
-|---|---|
-| **Phase 0** | Unified `STATE` spine + safeCall envelope + TTL cache + canonical schemas |
-| **Phase 1-5** | Map · aircraft · airport engines · render queue · agent dimensions · perf governor |
-| **Phase 7** | Calendar redesign · booking deeplinks · disclaimer card |
-| **Phase 8** | Animation discipline · score engine · weather + ATC · 7-agent system · pipeline |
-| **Phase 9** | Climate-aware weather · iOS-style route plane · ORACLE weather reasoning |
-| **Phase 11** | Map cleanup · Compare-all-sources new-tab view (MutationObserver pattern) |
-| **Phase 12-14** | Intel Panel hoist · live agent monitoring · Apple-discipline pass |
-
-See `BUILD_NOTES.md` for full chronology.
-
-## Console probes
-
-```js
-STATE                                  // unified state spine
-AGENTS                                 // 7-agent registry
-STATE.intelligence.pipeline.trace      // last pipeline run
-SkyPulse.openFlightComparison(STATE.flights.directs[0])
-bookingUrlV2('Skyscanner', 'DXB', 'COK')
 ```
+src/
+  app/            App.jsx, SceneManager.jsx
+  scenes/         IdleScene, SearchScene, ResultsScene, TripsScene
+  components/     Globe, SearchBar, AirportInput, FlightList, FlightCard,
+                  FilterPanel, MapPanel, ContextPanel, AircraftSchematic,
+                  WeatherCard, PricingInsight, DirectVsConnecting,
+                  TopTicker, SettingsDrawer, Header, Toast
+  lib/            airports · airlines · results · intelligence · weather
+                  seating · booking · motion · util
+  state/          useFlightStore (Zustand)
+  styles/         index.css (Tailwind layers)
+```
+
+## Run
+
+```bash
+npm install
+npm run dev          # http://localhost:5173
+npm run build        # → dist/
+npm run preview      # serve dist build
+```
+
+## Honesty
+
+ATLAS shows no fake telemetry, no fake urgency, no live tracking claims.
+
+- **Booking** hands off to Google Flights for real availability.
+- **Pricing intelligence** ("Below typical / Stable / Above typical") is computed
+  from the returned result set's median — never made up.
+- **Weather** is deterministic by route + date, framed as
+  "expected at this time of year" — not live.
+- **Field-note ticker** uses aviation industry truisms, not live alerts.
+- **Aircraft schematic** shows known cabin patterns by family — not real-time seat maps.
+
+## Customization
+
+Use the **Customize** link in the header to control:
+
+- Motion intensity (low / medium / high)
+- Card density (compact / standard / expanded)
+- Intelligence verbosity (minimal / standard / detailed)
+- Map animations on/off
+- Currency display
+
+Defaults are always clean, minimal, trusted.
+
+## Deploy
+
+`git push` — Vercel auto-detects Vite, runs `npm run build`, serves `dist/`.
 
 ## License
 
-MIT — see `LICENSE`
-
----
-
-Built with vanilla JS · zero dependencies at runtime (CDN only)
+MIT — see `LICENSE`.
